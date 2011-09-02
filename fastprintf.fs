@@ -1,7 +1,8 @@
 module FastPrintf
 
 open System
-open System.Text
+open System.Collections.Generic
+
 open Microsoft.FSharp.Reflection
 
 [<Flags>]
@@ -69,7 +70,7 @@ type FormatPart =
       next: FormatContext -> obj }
 
 and FormatContext =
-    { res: StringBuilder
+    { res: string
       arg: FormatPart list }
 
 type Formatter<'T, 'Result>(ctx: FormatContext) =
@@ -78,9 +79,8 @@ type Formatter<'T, 'Result>(ctx: FormatContext) =
     override this.Invoke (v: 'T) =
         match ctx.arg with
         | x :: xs ->
-            ctx.res.Append((x.func :?> 'T -> string) v) |> ignore
-            ctx.res.Append(x.element.postfix) |> ignore
-            unbox (x.next {ctx with arg = xs})
+            let res = ctx.res + ((x.func :?> 'T -> string) v) + x.element.postfix
+            unbox (x.next {new FormatContext with res = res and arg = xs})
         | _ -> failwith "Internal error"
 
 type FormatterFactory =
@@ -157,6 +157,22 @@ let rec getFormatParts (els: FormatElement list) (typ: Type) =
 let sprintf (fmt: PrintfFormat<'a, _, _, string>) =
     let prefix, els = parseFormatString fmt.Value
     let parts = getFormatParts els typeof<'a>
-    let ctx = { new FormatContext with res = StringBuilder().Append(prefix) and arg = parts }
+    let ctx = { new FormatContext with res = prefix and arg = parts }
     let start = getFormatterFactory typeof<'a>
+    unbox (start ctx): 'a
+
+let cache = Dictionary<string, string * FormatPart list * (FormatContext -> obj)>()
+
+let sprintfc (fmt: PrintfFormat<'a, _, _, string>) =
+    let prefix, parts, start =
+        match cache.TryGetValue(fmt.Value) with
+        | true, v -> v
+        | _ ->
+            let prefix, els = parseFormatString fmt.Value
+            let parts = getFormatParts els typeof<'a>
+            let start = getFormatterFactory typeof<'a>
+            cache.Add(fmt.Value, (prefix, parts, start))
+            prefix, parts, start
+
+    let ctx = { new FormatContext with res = prefix and arg = parts }
     unbox (start ctx): 'a
