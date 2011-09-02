@@ -21,6 +21,8 @@ type FormatElement =
       typ: char
       postfix: string }
 
+let inline hasFlag e f = (e &&& f) = f
+
 let parseFormatFlag ch =
     match ch with
     | '0' -> FormatFlags.ZeroFill
@@ -108,7 +110,7 @@ let getGenericStringFunction (e: FormatElement) (typ: Type) =
     let opts = options.GetProperty("Default", BindingFlags.NonPublic ||| BindingFlags.Static).GetValue(null, [||])
 
     // printfn %0A is considered to mean 'print width zero'
-    if e.width > 0 || e.flags.HasFlag(FormatFlags.ZeroFill) then
+    if e.width > 0 || hasFlag e.flags FormatFlags.ZeroFill then
         options.GetProperty("PrintWidth", BindingFlags.NonPublic ||| BindingFlags.Instance).SetValue(opts, e.width, [||])
 
     if e.precision >= 0 then
@@ -118,15 +120,15 @@ let getGenericStringFunction (e: FormatElement) (typ: Type) =
     let str = display.GetMethod("anyToStringForPrintf", BindingFlags.NonPublic ||| BindingFlags.Static)
     let strt = str.MakeGenericMethod([|typ|])
 
-    let flags = if e.flags.HasFlag(FormatFlags.AddSignIfPositive) then BindingFlags.Public ||| BindingFlags.NonPublic else BindingFlags.Public
+    let flags = if hasFlag e.flags FormatFlags.AddSignIfPositive then BindingFlags.Public ||| BindingFlags.NonPublic else BindingFlags.Public
 
     typeof<Factory>.GetMethod("CreateGenericString").MakeGenericMethod([|typ|]).Invoke(null, [|strt; opts; box flags|])
 
 let addPadding (e: FormatElement) (conv: 'a -> string) =
     if e.width = 0 then conv
     else
-        let ch = if e.flags.HasFlag(FormatFlags.ZeroFill) then '0' else ' '
-        if e.flags.HasFlag(FormatFlags.LeftJustify) then
+        let ch = if hasFlag e.flags FormatFlags.ZeroFill then '0' else ' '
+        if hasFlag e.flags FormatFlags.LeftJustify then
             fun x -> (conv x).PadLeft(e.width, ch)
         else
             fun x -> (conv x).PadRight(e.width, ch)
@@ -134,8 +136,8 @@ let addPadding (e: FormatElement) (conv: 'a -> string) =
 let inline toStringInteger (e: FormatElement) unsigned : ^T -> string =
     match e.typ with
     | 'd' | 'i' ->
-        if e.flags.HasFlag(FormatFlags.AddSignIfPositive) || e.flags.HasFlag(FormatFlags.AddSpaceIfPositive) then
-            let pad = if e.flags.HasFlag(FormatFlags.AddSignIfPositive) then "+" else " "
+        if hasFlag e.flags FormatFlags.AddSignIfPositive || hasFlag e.flags FormatFlags.AddSpaceIfPositive then
+            let pad = if hasFlag e.flags FormatFlags.AddSignIfPositive then "+" else " "
             fun (x: 'T) -> let s = x.ToString() in if x >= Unchecked.defaultof<'T> then pad + s else s
         else
             fun (x: 'T) -> x.ToString()
