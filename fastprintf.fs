@@ -87,13 +87,56 @@ type FormatterFactory =
     static member Create<'T, 'Result> () =
         fun ctx -> box (Formatter<'T, 'Result>(ctx))
 
-let rec getFunctionArguments (typ: Type) = 
-    let arg, res = FSharpType.GetFunctionElements typ 
-    arg :: (if FSharpType.IsFunction res then getFunctionArguments res else [res])
-
 let getFormatterFactory (typ: Type) =
     let arg, res = FSharpType.GetFunctionElements typ 
     typeof<FormatterFactory>.GetMethod("Create").MakeGenericMethod([|arg; res|]).Invoke(null, [||]) :?> (FormatContext -> obj)
+
+let addPadding (e: FormatElement) (conv: 'a -> string) =
+    if e.width = 0 then conv
+    else
+        let ch = if e.flags.HasFlag(FormatFlags.ZeroFill) then '0' else ' '
+        if e.flags.HasFlag(FormatFlags.LeftJustify) then
+            fun x -> (conv x).PadLeft(e.width, ch)
+        else
+            fun x -> (conv x).PadRight(e.width, ch)
+
+let inline toStringInteger (e: FormatElement) unsigned : ^T -> string =
+    match e.typ with
+    | 'd' | 'i' ->
+        if e.flags.HasFlag(FormatFlags.AddSignIfPositive) || e.flags.HasFlag(FormatFlags.AddSpaceIfPositive) then
+            let pad = if e.flags.HasFlag(FormatFlags.AddSignIfPositive) then "+" else " "
+            fun (x: 'T) -> let s = x.ToString() in if x >= Unchecked.defaultof<'T> then pad + s else s
+        else
+            fun (x: 'T) -> x.ToString()
+    | 'u' -> fun (x: 'T) -> (x |> unsigned).ToString()
+    | 'x' -> fun (x: ^T) -> (^T: (member ToString: string -> string) (x, "x"))
+    | 'X' -> fun (x: ^T) -> (^T: (member ToString: string -> string) (x, "X"))
+    | 'o' -> fun (x: 'T) -> Convert.ToString(x |> unsigned |> int64, 8)
+    | _ -> failwithf "Unrecognized integer type specifier '%c'" e.typ
+
+let inline toStringFloat (e: FormatElement) : ^T -> string =
+    let fmt = e.typ.ToString() + (if e.precision < 0 then "6" else (max (min e.precision 99) 0).ToString())
+    fun (x: 'T) -> (^T: (member ToString: string -> string) (x, fmt))
+
+let fin<'T> e (f: 'T -> string) =
+    f |> addPadding e |> box
+
+let toString (e: FormatElement) (typ: Type) =
+    if typ = typeof<int8> then toStringInteger e uint8 |> fin<int8> e
+    else if typ = typeof<uint8> then toStringInteger e uint8 |> fin<uint8> e
+    else if typ = typeof<int16> then toStringInteger e uint16 |> fin<int16> e
+    else if typ = typeof<uint16> then toStringInteger e uint16 |> fin<uint16> e
+    else if typ = typeof<int32> then toStringInteger e uint32 |> fin<int32> e
+    else if typ = typeof<uint32> then toStringInteger e uint32 |> fin<uint32> e
+    else if typ = typeof<int64> then toStringInteger e uint64 |> fin<int64> e
+    else if typ = typeof<uint64> then toStringInteger e uint64 |> fin<uint64> e
+    else if typ = typeof<nativeint> then toStringInteger e unativeint |> fin<nativeint> e
+    // else if typ = typeof<unativeint> then toStringInteger e unativeint |> fin<unativeint> e
+    else if typ = typeof<float32> then toStringFloat e |> fin<float32> e
+    else if typ = typeof<float> then toStringFloat e |> fin<float> e
+    else if typ = typeof<decimal> then toStringFloat e |> fin<decimal> e
+    else if typ = typeof<string> then (fun (x: string) -> x) |> fin<string> e
+    else failwithf "Unrecognized type %A" typ
 
 let rec getFormatParts (els: FormatElement list) (typ: Type) =
     match els with
@@ -102,10 +145,7 @@ let rec getFormatParts (els: FormatElement list) (typ: Type) =
         []
     | x :: xs ->
         let arg, res = FSharpType.GetFunctionElements typ 
-        let str =
-            if arg = typeof<int> then box (fun (x: int) -> x.ToString())
-            else if arg = typeof<string> then box (fun (x: string) -> x)
-            else failwithf "Unsupported type %A" arg
+        let str = toString x arg
         let next =
             if FSharpType.IsFunction res then
                 getFormatterFactory res
@@ -116,8 +156,7 @@ let rec getFormatParts (els: FormatElement list) (typ: Type) =
 
 let sprintf (fmt: PrintfFormat<'a, _, _, string>) =
     let prefix, els = parseFormatString fmt.Value
-    let pel = { new FormatElement with flags = FormatFlags.None and width = 0 and precision = 0 and typ = '^' and postfix = prefix }
     let parts = getFormatParts els typeof<'a>
     let ctx = { new FormatContext with res = StringBuilder().Append(prefix) and arg = parts }
     let start = getFormatterFactory typeof<'a>
-    unbox (start ctx)
+    unbox (start ctx): 'a
