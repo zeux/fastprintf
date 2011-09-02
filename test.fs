@@ -14,6 +14,12 @@ let curry = (FastPrintf.sprintf "foo %d %s" 4)
 printfn "%s" (curry "hey!")
 printfn "%s" (curry "yo!")
 
+printfn "%s" (FastPrintf.sprintf "%O %O %O %O" 1 "fo" true ())
+printfn "%s" (FastPrintf.sprintf "%b %c" true 'X')
+
+type Point = {x: float; y: float}
+printfn "%s" (FastPrintf.sprintf "%A" {x = 1.0; y = 4.0})
+
 let timec = 10000
 
 let time1 () =

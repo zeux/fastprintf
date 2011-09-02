@@ -2,6 +2,7 @@ module FastPrintf
 
 open System
 open System.Collections.Generic
+open System.Reflection
 
 open Microsoft.FSharp.Reflection
 
@@ -83,13 +84,43 @@ type Formatter<'T, 'Result>(ctx: FormatContext) =
             unbox (x.next {new FormatContext with res = res and arg = xs})
         | _ -> failwith "Internal error"
 
-type FormatterFactory =
-    static member Create<'T, 'Result> () =
+type Factory =
+    static member CreateFormatter<'T, 'Result> () =
         fun ctx -> box (Formatter<'T, 'Result>(ctx))
+
+    static member CreateBoxString<'T> () =
+        fun (o: 'T) -> if Object.ReferenceEquals(o, null) then "<null>" else o.ToString()
+
+    static member CreateGenericString<'T> (display: MethodInfo) (options: obj) (flags: obj) =
+        fun (o: 'T) -> if Object.ReferenceEquals(o, null) then "<null>" else display.Invoke(null, [|options; flags; box o|]) :?> string
 
 let getFormatterFactory (typ: Type) =
     let arg, res = FSharpType.GetFunctionElements typ 
-    typeof<FormatterFactory>.GetMethod("Create").MakeGenericMethod([|arg; res|]).Invoke(null, [||]) :?> (FormatContext -> obj)
+    typeof<Factory>.GetMethod("CreateFormatter").MakeGenericMethod([|arg; res|]).Invoke(null, [||]) :?> (FormatContext -> obj)
+
+let getBoxStringFunction (typ: Type) =
+    typeof<Factory>.GetMethod("CreateBoxString").MakeGenericMethod([|typ|]).Invoke(null, [||])
+
+let getGenericStringFunction (e: FormatElement) (typ: Type) =
+    let fsharp = typeof<FSharpType>.Assembly
+    let options = fsharp.GetType("Microsoft.FSharp.Text.StructuredPrintfImpl.FormatOptions")
+
+    let opts = options.GetProperty("Default", BindingFlags.NonPublic ||| BindingFlags.Static).GetValue(null, [||])
+
+    // printfn %0A is considered to mean 'print width zero'
+    if e.width > 0 || e.flags.HasFlag(FormatFlags.ZeroFill) then
+        options.GetProperty("PrintWidth", BindingFlags.NonPublic ||| BindingFlags.Instance).SetValue(opts, e.width, [||])
+
+    if e.precision >= 0 then
+        options.GetProperty("PrintSize", BindingFlags.NonPublic ||| BindingFlags.Instance).SetValue(opts, e.precision, [||])
+
+    let display = fsharp.GetType("Microsoft.FSharp.Text.StructuredPrintfImpl.Display")
+    let str = display.GetMethod("anyToStringForPrintf", BindingFlags.NonPublic ||| BindingFlags.Static)
+    let strt = str.MakeGenericMethod([|typ|])
+
+    let flags = if e.flags.HasFlag(FormatFlags.AddSignIfPositive) then BindingFlags.Public ||| BindingFlags.NonPublic else BindingFlags.Public
+
+    typeof<Factory>.GetMethod("CreateGenericString").MakeGenericMethod([|typ|]).Invoke(null, [|strt; opts; box flags|])
 
 let addPadding (e: FormatElement) (conv: 'a -> string) =
     if e.width = 0 then conv
@@ -122,21 +153,35 @@ let fin<'T> e (f: 'T -> string) =
     f |> addPadding e |> box
 
 let toString (e: FormatElement) (typ: Type) =
-    if typ = typeof<int8> then toStringInteger e uint8 |> fin<int8> e
-    else if typ = typeof<uint8> then toStringInteger e uint8 |> fin<uint8> e
-    else if typ = typeof<int16> then toStringInteger e uint16 |> fin<int16> e
-    else if typ = typeof<uint16> then toStringInteger e uint16 |> fin<uint16> e
-    else if typ = typeof<int32> then toStringInteger e uint32 |> fin<int32> e
-    else if typ = typeof<uint32> then toStringInteger e uint32 |> fin<uint32> e
-    else if typ = typeof<int64> then toStringInteger e uint64 |> fin<int64> e
-    else if typ = typeof<uint64> then toStringInteger e uint64 |> fin<uint64> e
-    else if typ = typeof<nativeint> then toStringInteger e unativeint |> fin<nativeint> e
-    // else if typ = typeof<unativeint> then toStringInteger e unativeint |> fin<unativeint> e
-    else if typ = typeof<float32> then toStringFloat e |> fin<float32> e
-    else if typ = typeof<float> then toStringFloat e |> fin<float> e
-    else if typ = typeof<decimal> then toStringFloat e |> fin<decimal> e
-    else if typ = typeof<string> then (fun (x: string) -> x) |> fin<string> e
-    else failwithf "Unrecognized type %A" typ
+    match e.typ with
+    | 'b' -> (fun x -> if x then "true" else "false") |> box
+    | 'c' -> (fun (x: char) -> x.ToString()) |> box
+    | 'd' | 'i' | 'u' | 'x' | 'X' | 'o' ->
+        match Type.GetTypeCode(typ) with
+        | TypeCode.SByte -> toStringInteger e uint8 |> fin<int8> e
+        | TypeCode.Byte -> toStringInteger e uint8 |> fin<uint8> e
+        | TypeCode.Int16 -> toStringInteger e uint16 |> fin<int16> e
+        | TypeCode.UInt16 -> toStringInteger e uint16 |> fin<uint16> e
+        | TypeCode.Int32 -> toStringInteger e uint32 |> fin<int32> e
+        | TypeCode.UInt32 -> toStringInteger e uint32 |> fin<uint32> e
+        | TypeCode.Int64 -> toStringInteger e uint64 |> fin<int64> e
+        | TypeCode.UInt64 -> toStringInteger e uint64 |> fin<uint64> e
+        | _ -> failwithf "Unrecognized type %A" typ
+    | 'e' | 'E' | 'f' | 'F' | 'g' | 'G' ->
+        match Type.GetTypeCode(typ) with
+        | TypeCode.Single -> toStringFloat e |> fin<float32> e
+        | TypeCode.Double -> toStringFloat e |> fin<float> e
+        | TypeCode.Decimal -> toStringFloat e |> fin<decimal> e
+        | _ -> failwithf "Unrecognized type %A" typ
+    | 'M' ->
+        if typ = typeof<decimal> then toStringFloat e |> fin<decimal> e
+        else failwithf "Unrecognized type %A" typ
+    | 's' ->
+        if typ = typeof<string> then (fun (x: string) -> x) |> fin<string> e
+        else failwithf "Unrecognized type %A" typ
+    | 'O' -> getBoxStringFunction typ
+    | 'A' -> getGenericStringFunction e typ
+    | _ -> failwithf "Unrecognized format type %c" e.typ
 
 let rec getFormatParts (els: FormatElement list) (typ: Type) =
     match els with
