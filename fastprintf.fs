@@ -108,13 +108,14 @@ let getGenericStringFunction (e: FormatElement) (typ: Type) =
     typeof<Factory>.GetMethod("CreateGenericString").MakeGenericMethod([|typ|]).Invoke(null, [||])
 
 let addPadding (e: FormatElement) (conv: 'a -> string) =
-    if e.width = 0 then conv
+    if e.width = 0 then
+        conv
     else
         let ch = if hasFlag e.flags FormatFlags.ZeroFill then '0' else ' '
         if hasFlag e.flags FormatFlags.LeftJustify then
-            fun x -> (conv x).PadLeft(e.width, ch)
-        else
             fun x -> (conv x).PadRight(e.width, ch)
+        else
+            fun x -> (conv x).PadLeft(e.width, ch)
 
 let inline toStringInvariant (x: 'T) =
     (^T: (member ToString: IFormatProvider -> string) (x, CultureInfo.InvariantCulture))
@@ -122,41 +123,86 @@ let inline toStringInvariant (x: 'T) =
 let inline toStringFormatInvariant (x: 'T) format =
     (^T: (member ToString: string -> IFormatProvider -> string) (x, format, CultureInfo.InvariantCulture))
 
-let inline toStringInteger (e: FormatElement) unsigned : 'T -> string =
+let inline toStringIntegerBasic (e: FormatElement) unsigned : 'T -> string =
     match e.typ with
-    | 'd' | 'i' ->
-        if hasFlag e.flags FormatFlags.AddSignIfPositive || hasFlag e.flags FormatFlags.AddSpaceIfPositive then
-            let pad = if hasFlag e.flags FormatFlags.AddSignIfPositive then "+" else " "
-            fun (x: 'T) -> let s = toStringInvariant x in if x >= Unchecked.defaultof<'T> then pad + s else s
-        else
-            fun (x: 'T) -> toStringInvariant x
+    | 'd' | 'i' -> fun (x: 'T) -> toStringInvariant x
     | 'u' -> fun (x: 'T) -> toStringInvariant (x |> unsigned)
     | 'x' -> fun (x: 'T) -> toStringFormatInvariant x "x"
     | 'X' -> fun (x: 'T) -> toStringFormatInvariant x "X"
     | 'o' -> fun (x: 'T) -> Convert.ToString(x |> unsigned |> int64, 8)
     | _ -> failwithf "Unrecognized integer type specifier '%c'" e.typ
 
-let inline toStringFloat (e: FormatElement) : 'T -> string =
-    let fmt = e.typ.ToString() + (if e.precision < 0 then "6" else (max (min e.precision 99) 0).ToString())
-    
+let inline toStringInteger (e: FormatElement) unsigned : 'T -> string =
+    let basic = toStringIntegerBasic e unsigned
+
+    if e.width = 0 && e.flags = FormatFlags.None then
+        basic
+    else fun (x: 'T) ->
+        let mutable s = basic x
+        let mutable sign = false
+
+        if s.[0] = '-' then
+            sign <- true
+        else if hasFlag e.flags FormatFlags.AddSignIfPositive || hasFlag e.flags FormatFlags.AddSpaceIfPositive then
+            s <- (if hasFlag e.flags FormatFlags.AddSignIfPositive then "+" else " ") + s
+            sign <- true
+
+        if e.width = 0 then
+            s
+        else if hasFlag e.flags FormatFlags.LeftJustify then
+            s.PadRight(e.width, ' ')
+        else if hasFlag e.flags FormatFlags.ZeroFill then
+            if sign then
+                if e.width <= s.Length then s
+                else
+                    s.Insert(1, String('0', e.width - s.Length))
+            else s.PadLeft(e.width, '0')
+        else
+            s.PadLeft(e.width, ' ')
+
+let getFloatFormat (e: FormatElement) =
+    e.typ.ToString() + (if e.precision < 0 then "6" else (max (min e.precision 99) 0).ToString())
+
+let inline toStringFloatBasic (e: FormatElement) : 'T -> string =
+    let fmt = getFloatFormat e
     fun (x: 'T) -> toStringFormatInvariant x fmt
+
+let inline floatIsFinite (x: 'T) =
+    not (^T: (static member IsPositiveInfinity: 'T -> bool) x) &&
+    not (^T: (static member IsNegativeInfinity: 'T -> bool) x) &&
+    not (^T: (static member IsNaN: 'T -> bool) x)
+
+let inline toStringFloat (e: FormatElement) : 'T -> string =
+    let basic = toStringFloatBasic e
+
+    if e.width = 0 && e.flags = FormatFlags.None then
+        basic
+    else fun (x: 'T) ->
+        let mutable s = basic x
+
+        if s.[0] <> '-' && s.[0] <> 'N' && (hasFlag e.flags FormatFlags.AddSignIfPositive || hasFlag e.flags FormatFlags.AddSpaceIfPositive) then
+            s <- (if hasFlag e.flags FormatFlags.AddSignIfPositive then "+" else " ") + s
+
+        let ch = if hasFlag e.flags FormatFlags.ZeroFill && floatIsFinite x then '0' else ' '
+        if hasFlag e.flags FormatFlags.LeftJustify then s.PadRight(e.width, ch)
+        else s.PadLeft(e.width, ch)
 
 let fin<'T> e (f: 'T -> string) =
     f |> addPadding e |> box
 
 let toString (e: FormatElement) (typ: Type) =
     match e.typ with
-    | 'b' -> (fun x -> if x then "true" else "false") |> box
-    | 'c' -> (fun (x: char) -> x.ToString()) |> box
+    | 'b' -> (fun x -> if x then "true" else "false") |> fin<bool> e
+    | 'c' -> (fun (x: char) -> x.ToString()) |> fin<char> e
     | 'd' | 'i' | 'u' | 'x' | 'X' | 'o' ->
-        if typ = typeof<int8> then toStringInteger e uint8 |> fin<int8> e
-        else if typ = typeof<uint8> then toStringInteger e uint8 |> fin<uint8> e
-        else if typ = typeof<int16> then toStringInteger e uint16 |> fin<int16> e
-        else if typ = typeof<uint16> then toStringInteger e uint16 |> fin<uint16> e
-        else if typ = typeof<int32> then toStringInteger e uint32 |> fin<int32> e
-        else if typ = typeof<uint32> then toStringInteger e uint32 |> fin<uint32> e
-        else if typ = typeof<int64> then toStringInteger e uint64 |> fin<int64> e
-        else if typ = typeof<uint64> then toStringInteger e uint64 |> fin<uint64> e
+        if typ = typeof<int8> then toStringInteger e uint8 |> box<int8 -> string>
+        else if typ = typeof<uint8> then toStringInteger e uint8 |> box<uint8 -> string>
+        else if typ = typeof<int16> then toStringInteger e uint16 |> box<int16 -> string>
+        else if typ = typeof<uint16> then toStringInteger e uint16 |> box<uint16 -> string>
+        else if typ = typeof<int32> then toStringInteger e uint32 |> box<int32 -> string>
+        else if typ = typeof<uint32> then toStringInteger e uint32 |> box<uint32 -> string>
+        else if typ = typeof<int64> then toStringInteger e uint64 |> box<int64 -> string>
+        else if typ = typeof<uint64> then toStringInteger e uint64 |> box<uint64 -> string>
         else if typ = typeof<nativeint> then
             match sizeof<nativeint> with
             | 4 -> (fun x -> int32 x |> toStringInteger e uint32) |> fin<nativeint> e
@@ -172,7 +218,7 @@ let toString (e: FormatElement) (typ: Type) =
         match Type.GetTypeCode(typ) with
         | TypeCode.Single -> toStringFloat e |> fin<float32> e
         | TypeCode.Double -> toStringFloat e |> fin<float> e
-        | TypeCode.Decimal -> toStringFloat e |> fin<decimal> e
+        | TypeCode.Decimal -> toStringFloatBasic e |> fin<decimal> e
         | _ -> failwithf "Unrecognized type %A" typ
     | 'M' ->
         if typ = typeof<decimal> then (fun (x: decimal) -> toStringInvariant x) |> fin<decimal> e
