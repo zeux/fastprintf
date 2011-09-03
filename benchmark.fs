@@ -29,7 +29,7 @@ let time4 N =
 let N1 = 10000
 let N2 = 1000000
 
-printfn "sprintf: %A" (time1 N1)
-printfn "fast sprintf: %A" (time2 N1)
-printfn "fast sprintfc: %A" (time3 N2)
-printfn "string.format: %A" (time4 N2)
+printfn "core sprintf:  %A (%d iter)" (time1 N1) N1
+printfn "fast sprintf:  %A (%d iter)" (time2 N1) N1
+printfn "fast sprintfc: %A (%d iter)" (time3 N2) N2
+printfn "string.format: %A (%d iter)" (time4 N2) N2
