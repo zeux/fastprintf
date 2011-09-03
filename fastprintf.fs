@@ -97,6 +97,54 @@ let addPadding (e: FormatElement) (conv: 'a -> string) =
         else
             fun x -> (conv x).PadLeft(e.width, ch)
 
+let formatChar c = 
+    match c with 
+    | '\'' -> "\\\'"
+    | '\\' -> "\\\\"
+    | '\b' -> "\\b"
+    | _ when System.Char.IsControl(c) -> 
+         let d1 = (int c / 100) % 10 
+         let d2 = (int c / 10) % 10 
+         let d3 = int c % 10 
+         "\\" + d1.ToString() + d2.ToString() + d3.ToString()
+    | _ -> c.ToString()
+            
+let genericPrintOpt (o: obj) =
+    match o with 
+    | null -> "<null>"
+    | :? double as d -> 
+        let s = d.ToString("g10", CultureInfo.InvariantCulture)
+        if System.Double.IsNaN(d) then "nan"
+        elif System.Double.IsNegativeInfinity(d) then "-infinity"
+        elif System.Double.IsPositiveInfinity(d) then "infinity"
+        elif String.forall(fun c -> System.Char.IsDigit(c) || c = '-')  s
+        then s + ".0" 
+        else s
+    | :? single as d -> 
+        (if System.Single.IsNaN(d) then "nan"
+         elif System.Single.IsNegativeInfinity(d) then "-infinity"
+         elif System.Single.IsPositiveInfinity(d) then "infinity"
+         elif float32(System.Int32.MinValue) < d && d < float32(System.Int32.MaxValue) && float32(int32(d)) = d 
+         then (System.Convert.ToInt32 d).ToString(CultureInfo.InvariantCulture) + ".0"
+         else d.ToString("g10", CultureInfo.InvariantCulture)) 
+        + "f"
+    | :? System.Decimal as d -> d.ToString("g", CultureInfo.InvariantCulture) + "M"
+    | :? uint64 as d -> d.ToString(CultureInfo.InvariantCulture) + "UL"
+    | :? int64  as d -> d.ToString(CultureInfo.InvariantCulture) + "L"
+    | :? int32  as d -> d.ToString(CultureInfo.InvariantCulture)
+    | :? uint32 as d -> d.ToString(CultureInfo.InvariantCulture) + "u"
+    | :? int16  as d -> d.ToString(CultureInfo.InvariantCulture) + "s"
+    | :? uint16 as d -> d.ToString(CultureInfo.InvariantCulture) + "us"
+    | :? sbyte  as d -> d.ToString(CultureInfo.InvariantCulture) + "y"
+    | :? byte   as d -> d.ToString(CultureInfo.InvariantCulture) + "uy"
+    | :? nativeint as d -> d.ToString() + "n"
+    | :? unativeint  as d -> d.ToString() + "un"
+    | :? bool   as b -> (if b then "true" else "false")
+    | :? char   as c -> "\'" + formatChar c + "\'"
+    | :? string as s -> "\"" + s + "\""
+    | :? Enum as e -> e.ToString()
+    | _ -> null
+
 type Factory =
     static member CreateFormatter<'T, 'Result> () =
         fun ctx -> box (Formatter<'T, 'Result>(ctx))
@@ -112,7 +160,13 @@ type Factory =
                 (if hasFlag e.flags FormatFlags.ZeroFill then "0" else if e.width > 0 then string e.width else ""),
                 (if e.precision >= 0 then "." + string e.precision else ""),
                 "A")
-        fun (o: 'T) -> Printf.sprintf (Printf.StringFormat<'T -> string>(fmt)) o
+        fun (o: 'T) ->
+            if fmt = "%A" then
+                let s = genericPrintOpt (box o)
+                if s <> null then s
+                else Printf.sprintf (Printf.StringFormat<'T -> string>(fmt)) o
+            else
+                Printf.sprintf (Printf.StringFormat<'T -> string>(fmt)) o
 
 let getFormatterFactory (typ: Type) =
     let arg, res = FSharpType.GetFunctionElements typ 

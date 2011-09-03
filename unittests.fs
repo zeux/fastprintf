@@ -288,14 +288,19 @@ let testGenericABasic () =
 
 // generic type %A, various types
 let testGenericATypes () =
-    tf8 "%A %A %A %A %A %A %A %A" 1y 1uy 1s 1us 1 1u 1L 1UL
+    tf8 "%A %A %A %A %A %A %A %A" -1y 1uy -1s 1us -1 1u -1L 1UL
     tf8 "%A %A %A %A %A %A %A %A" 1n 1un 1.f 1.0 1.0m true "oo" 'x'
     tf6 "%A %A %A %A %A %A" (X()) (Y()) testGenericABasic W.One (ref 0) {new U with x = 5 and y = 6.0 and z = "woo"}
+    tf8 "%A %A %A %A %A %A %A %A" 'x' '\t' '\b' '\r' '\n' '\000' '\012' '\031'
+    tf6 "%A %A %A %A %A %A" null "" "x" "\"fo\"" "\r\n\b\t\000\012\031" "'"
+    tf8 "%A %A %A %A %A %A %A %A" 0.f 1.f -1.f 1000.f 1000.1f infinityf -infinityf nanf
+    tf8 "%A %A %A %A %A %A %A %A" 0.0 1.0 -1.0 1000.0 1000.1 infinity -infinity nan
+    tf8 "%A %A %A %A %A %A %A %A" 2147483647.f 2147483648.f -2147483648.f -2147483649.f 2147483647.0 2147483648.0 -2147483648.0 -2147483649.0
 
 // generic type %A, various flags
 let testGenericAFlags () =
     let u = {new U with x = 5 and y = 6.0 and z = "woo"}
-    let v = {new V with x = 5 and y = 6.0 and z = "woo"}
+    let v = {new V with x = 5 and y = 6.0 and z = "woo"} // V is private
     tf5 "%A %A %A %A %A" u v 2.0 true "boo"
     tf5 "%+A %+A %+A %+A %+A" u v 2.0 true "boo"
     tf5 "%0A %0A %0A %0A %0A" u v 2.0 true "boo"
