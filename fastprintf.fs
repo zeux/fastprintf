@@ -5,8 +5,6 @@ open System.Collections.Generic
 open System.Globalization
 open System.Reflection
 
-open Microsoft.FSharp.Reflection
-
 [<Flags>]
 type FormatFlags =
 | None = 0
@@ -168,8 +166,18 @@ type Factory =
             else
                 Printf.sprintf (Printf.StringFormat<'T -> string>(fmt)) o
 
+let funTy = typedefof<_ -> _>
+
+let isFunctionType (typ: Type) =
+    typ.IsGenericType && typ.GetGenericTypeDefinition().Equals(funTy)
+
+let getFunctionElements (typ: Type) =
+    match typ.GetGenericArguments() with
+    | [|car; cdr|] -> car, cdr
+    | _ -> failwithf "Type %A is not a function type" typ
+
 let getFormatterFactory (typ: Type) =
-    let arg, res = FSharpType.GetFunctionElements typ 
+    let arg, res = getFunctionElements typ 
     typeof<Factory>.GetMethod("CreateFormatter").MakeGenericMethod([|arg; res|]).Invoke(null, [||]) :?> (FormatContext -> obj)
 
 let getBoxStringFunction (e: FormatElement) (typ: Type) =
@@ -306,10 +314,10 @@ let rec getFormatParts (els: FormatElement list) (typ: Type) =
         if typ <> typeof<string> then failwithf "Residue %A" typ
         []
     | x :: xs ->
-        let arg, res = FSharpType.GetFunctionElements typ 
+        let arg, res = getFunctionElements typ 
         let str = toString x arg
         let next =
-            if FSharpType.IsFunction res then
+            if isFunctionType res then
                 getFormatterFactory res
             else
                 if res <> typeof<string> then failwithf "Residue %A" res
@@ -320,7 +328,7 @@ let sprintf (fmt: PrintfFormat<'a, _, _, string>) =
     let prefix, els = parseFormatString fmt.Value
     let parts = getFormatParts els typeof<'a>
     let ctx = { new FormatContext with res = prefix and arg = parts }
-    if FSharpType.IsFunction typeof<'a> then
+    if isFunctionType typeof<'a> then
         let start = getFormatterFactory typeof<'a>
         unbox (start ctx): 'a
     else
