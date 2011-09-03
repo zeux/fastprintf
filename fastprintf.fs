@@ -163,9 +163,22 @@ let inline toStringInteger (e: FormatElement) unsigned : 'T -> string =
 let getFloatFormat (e: FormatElement) =
     e.typ.ToString() + (if e.precision < 0 then "6" else (max (min e.precision 99) 0).ToString())
 
+let getFloatSign (e: FormatElement) =
+    if hasFlag e.flags FormatFlags.AddSpaceIfPositive then " " else "+"
+
 let inline toStringFloatBasic (e: FormatElement) : 'T -> string =
     let fmt = getFloatFormat e
-    fun (x: 'T) -> toStringFormatInvariant x fmt
+
+    if hasFlag e.flags FormatFlags.AddSignIfPositive || hasFlag e.flags FormatFlags.AddSpaceIfPositive then
+        fun (x: 'T) ->
+            let s = toStringFormatInvariant x fmt
+            if s.[0] <> '-' && s.[0] <> 'N' then
+                getFloatSign e + s
+            else
+                s
+    else
+        fun (x: 'T) -> toStringFormatInvariant x fmt
+
 
 let inline floatIsFinite (x: 'T) =
     not (^T: (static member IsPositiveInfinity: 'T -> bool) x) &&
@@ -179,9 +192,6 @@ let inline toStringFloat (e: FormatElement) : 'T -> string =
         basic
     else fun (x: 'T) ->
         let mutable s = basic x
-
-        if s.[0] <> '-' && s.[0] <> 'N' && (hasFlag e.flags FormatFlags.AddSignIfPositive || hasFlag e.flags FormatFlags.AddSpaceIfPositive) then
-            s <- (if hasFlag e.flags FormatFlags.AddSignIfPositive then "+" else " ") + s
 
         let ch = if hasFlag e.flags FormatFlags.ZeroFill && floatIsFinite x then '0' else ' '
         if hasFlag e.flags FormatFlags.LeftJustify then s.PadRight(e.width, ch)

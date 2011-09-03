@@ -63,58 +63,64 @@ let testIntegerBasic () =
     tf6l "%d %i %o %u %x %X" [0n; 42n; 2147483647n; -2147483648n]
     tf6l "%d %i %o %u %x %X" [0un; 42un; 2147483647un; 4294967295un]
 
-// integers: all flags & combinations (0-+ ) with padding
-let testIntegerFlagsWithPadding () =
+// signed integers: all flags & combinations (0-+ ) with padding
+let testIntegerFlagsWithPaddingSigned () =
     tf6l "%020d %020i %020o %020u %020x %020X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%020d %020i %020o %020u %020x %020X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%0-20d %0-20i %0-20o %0-20u %0-20x %0-20X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%0-20d %0-20i %0-20o %0-20u %0-20x %0-20X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%0-+20d %0-+20i %0-+20o %0-+20u %0-+20x %0-+20X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%0-+20d %0-+20i %0-+20o %0-+20u %0-+20x %0-+20X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%0- 20d %0- 20i %0- 20o %0- 20u %0- 20x %0- 20X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%0- 20d %0- 20i %0- 20o %0- 20u %0- 20x %0- 20X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%0+20d %0+20i %0+20o %0+20u %0+20x %0+20X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%0+20d %0+20i %0+20o %0+20u %0+20x %0+20X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%0 20d %0 20i %0 20o %0 20u %0 20x %0 20X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%0 20d %0 20i %0 20o %0 20u %0 20x %0 20X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%20d %20i %20o %20u %20x %20X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%20d %20i %20o %20u %20x %20X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%-20d %-20i %-20o %-20u %-20x %-20X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%-20d %-20i %-20o %-20u %-20x %-20X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%-+20d %-+20i %-+20o %-+20u %-+20x %-+20X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%-+20d %-+20i %-+20o %-+20u %-+20x %-+20X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%- 20d %- 20i %- 20o %- 20u %- 20x %- 20X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%- 20d %- 20i %- 20o %- 20u %- 20x %- 20X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%+20d %+20i %+20o %+20u %+20x %+20X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%+20d %+20i %+20o %+20u %+20x %+20X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "% 20d % 20i % 20o % 20u % 20x % 20X" [0; 200; -200; 2147483647; -2147483648]
+
+// unsigned integers: all flags & combinations (0-+ ) with padding
+let testIntegerFlagsWithPaddingUnsigned () =
+    tf6l "%020d %020i %020o %020u %020x %020X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%0-20d %0-20i %0-20o %0-20u %0-20x %0-20X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%0-+20d %0-+20i %0-+20o %0-+20u %0-+20x %0-+20X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%0- 20d %0- 20i %0- 20o %0- 20u %0- 20x %0- 20X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%0+20d %0+20i %0+20o %0+20u %0+20x %0+20X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%0 20d %0 20i %0 20o %0 20u %0 20x %0 20X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%20d %20i %20o %20u %20x %20X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%-20d %-20i %-20o %-20u %-20x %-20X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%-+20d %-+20i %-+20o %-+20u %-+20x %-+20X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%- 20d %- 20i %- 20o %- 20u %- 20x %- 20X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%+20d %+20i %+20o %+20u %+20x %+20X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "% 20d % 20i % 20o % 20u % 20x % 20X" [0u; 200u; 2147483647u; 4294967295u]
 
-// integers: all flags & combinations (0-+ ) without padding
-let testIntegerFlagsWithoutPadding () =
+// signed integers: all flags & combinations (0-+ ) without padding
+let testIntegerFlagsWithoutPaddingSigned () =
     tf6l "%0d %0i %0o %0u %0x %0X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%0d %0i %0o %0u %0x %0X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%0-d %0-i %0-o %0-u %0-x %0-X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%0-d %0-i %0-o %0-u %0-x %0-X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%0-+d %0-+i %0-+o %0-+u %0-+x %0-+X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%0-+d %0-+i %0-+o %0-+u %0-+x %0-+X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%0- d %0- i %0- o %0- u %0- x %0- X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%0- d %0- i %0- o %0- u %0- x %0- X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%0+d %0+i %0+o %0+u %0+x %0+X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%0+d %0+i %0+o %0+u %0+x %0+X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%0 d %0 i %0 o %0 u %0 x %0 X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%0 d %0 i %0 o %0 u %0 x %0 X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%d %i %o %u %x %X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%d %i %o %u %x %X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%-d %-i %-o %-u %-x %-X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%-d %-i %-o %-u %-x %-X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%-+d %-+i %-+o %-+u %-+x %-+X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%-+d %-+i %-+o %-+u %-+x %-+X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%- d %- i %- o %- u %- x %- X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%- d %- i %- o %- u %- x %- X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "%+d %+i %+o %+u %+x %+X" [0; 200; -200; 2147483647; -2147483648]
-    tf6l "%+d %+i %+o %+u %+x %+X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "% d % i % o % u % x % X" [0; 200; -200; 2147483647; -2147483648]
+
+// unsigned integers: all flags & combinations (0-+ ) without padding
+let testIntegerFlagsWithoutPaddingUnsigned () =
+    tf6l "%0d %0i %0o %0u %0x %0X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%0-d %0-i %0-o %0-u %0-x %0-X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%0-+d %0-+i %0-+o %0-+u %0-+x %0-+X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%0- d %0- i %0- o %0- u %0- x %0- X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%0+d %0+i %0+o %0+u %0+x %0+X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%0 d %0 i %0 o %0 u %0 x %0 X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%d %i %o %u %x %X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%-d %-i %-o %-u %-x %-X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%-+d %-+i %-+o %-+u %-+x %-+X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%- d %- i %- o %- u %- x %- X" [0u; 200u; 2147483647u; 4294967295u]
+    tf6l "%+d %+i %+o %+u %+x %+X" [0u; 200u; 2147483647u; 4294967295u]
     tf6l "% d % i % o % u % x % X" [0u; 200u; 2147483647u; 4294967295u]
 
 // integers: all flags, all types
@@ -136,8 +142,38 @@ let testFloatBasic () =
     tf6l "%f %F %e %E %g %G" [0.0; 0.1; 10.001; -34.73; 1000000000.343; infinity; -infinity; nan]
     tf6l "%f %F %e %E %g %G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
 
-// floats: all flags & combinations (0-+ ) with padding
-let testFloatFlagsWithPadding () =
+// single floats: all flags & combinations (0-+ ) with padding
+let testFloatFlagsWithPaddingSingle () =
+    tf6l "%020.4f %020.4F %020.4e %020.4E %020.4g %020.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%0-20.4f %0-20.4F %0-20.4e %0-20.4E %0-20.4g %0-20.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%0-+20.4f %0-+20.4F %0-+20.4e %0-+20.4E %0-+20.4g %0-+20.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%0- 20.4f %0- 20.4F %0- 20.4e %0- 20.4E %0- 20.4g %0- 20.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%0+20.4f %0+20.4F %0+20.4e %0+20.4E %0+20.4g %0+20.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%0 20.4f %0 20.4F %0 20.4e %0 20.4E %0 20.4g %0 20.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%20.4f %20.4F %20.4e %20.4E %20.4g %20.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%-20.4f %-20.4F %-20.4e %-20.4E %-20.4g %-20.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%-+20.4f %-+20.4F %-+20.4e %-+20.4E %-+20.4g %-+20.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%- 20.4f %- 20.4F %- 20.4e %- 20.4E %- 20.4g %- 20.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%+20.4f %+20.4F %+20.4e %+20.4E %+20.4g %+20.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "% 20.4f % 20.4F % 20.4e % 20.4E % 20.4g % 20.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+
+// single floats: all flags & combinations (0-+ ) without padding
+let testFloatFlagsWithoutPaddingSingle () =
+    tf6l "%0.4f %0.4F %0.4e %0.4E %0.4g %0.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%0-.4f %0-.4F %0-.4e %0-.4E %0-.4g %0-.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%0-+.4f %0-+.4F %0-+.4e %0-+.4E %0-+.4g %0-+.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%0- .4f %0- .4F %0- .4e %0- .4E %0- .4g %0- .4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%0+.4f %0+.4F %0+.4e %0+.4E %0+.4g %0+.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%0 .4f %0 .4F %0 .4e %0 .4E %0 .4g %0 .4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%.4f %.4F %.4e %.4E %.4g %.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%-.4f %-.4F %-.4e %-.4E %-.4g %-.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%-+.4f %-+.4F %-+.4e %-+.4E %-+.4g %-+.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%- .4f %- .4F %- .4e %- .4E %- .4g %- .4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%+.4f %+.4F %+.4e %+.4E %+.4g %+.4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "% .4f % .4F % .4e % .4E % .4g % .4G" [0.0f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+
+// double floats: all flags & combinations (0-+ ) with padding
+let testFloatFlagsWithPaddingDouble () =
     tf6l "%020.4f %020.4F %020.4e %020.4E %020.4g %020.4G" [0.0; 0.1; 10.001; -34.73; 1000000000.343; infinity; -infinity; nan]
     tf6l "%0-20.4f %0-20.4F %0-20.4e %0-20.4E %0-20.4g %0-20.4G" [0.0; 0.1; 10.001; -34.73; 1000000000.343; infinity; -infinity; nan]
     tf6l "%0-+20.4f %0-+20.4F %0-+20.4e %0-+20.4E %0-+20.4g %0-+20.4G" [0.0; 0.1; 10.001; -34.73; 1000000000.343; infinity; -infinity; nan]
@@ -151,8 +187,8 @@ let testFloatFlagsWithPadding () =
     tf6l "%+20.4f %+20.4F %+20.4e %+20.4E %+20.4g %+20.4G" [0.0; 0.1; 10.001; -34.73; 1000000000.343; infinity; -infinity; nan]
     tf6l "% 20.4f % 20.4F % 20.4e % 20.4E % 20.4g % 20.4G" [0.0; 0.1; 10.001; -34.73; 1000000000.343; infinity; -infinity; nan]
 
-// floats: all flags & combinations (0-+ ) without padding
-let testFloatFlagsWithoutPadding () =
+// double floats: all flags & combinations (0-+ ) without padding
+let testFloatFlagsWithoutPaddingDouble () =
     tf6l "%0.4f %0.4F %0.4e %0.4E %0.4g %0.4G" [0.0; 0.1; 10.001; -34.73; 1000000000.343; infinity; -infinity; nan]
     tf6l "%0-.4f %0-.4F %0-.4e %0-.4E %0-.4g %0-.4G" [0.0; 0.1; 10.001; -34.73; 1000000000.343; infinity; -infinity; nan]
     tf6l "%0-+.4f %0-+.4F %0-+.4e %0-+.4E %0-+.4g %0-+.4G" [0.0; 0.1; 10.001; -34.73; 1000000000.343; infinity; -infinity; nan]
@@ -165,6 +201,36 @@ let testFloatFlagsWithoutPadding () =
     tf6l "%- .4f %- .4F %- .4e %- .4E %- .4g %- .4G" [0.0; 0.1; 10.001; -34.73; 1000000000.343; infinity; -infinity; nan]
     tf6l "%+.4f %+.4F %+.4e %+.4E %+.4g %+.4G" [0.0; 0.1; 10.001; -34.73; 1000000000.343; infinity; -infinity; nan]
     tf6l "% .4f % .4F % .4e % .4E % .4g % .4G" [0.0; 0.1; 10.001; -34.73; 1000000000.343; infinity; -infinity; nan]
+
+// decimal floats: all flags & combinations (0-+ ) with padding
+let testFloatFlagsWithPaddingDecimal () =
+    tf6l "%020.4f %020.4F %020.4e %020.4E %020.4g %020.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%0-20.4f %0-20.4F %0-20.4e %0-20.4E %0-20.4g %0-20.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%0-+20.4f %0-+20.4F %0-+20.4e %0-+20.4E %0-+20.4g %0-+20.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%0- 20.4f %0- 20.4F %0- 20.4e %0- 20.4E %0- 20.4g %0- 20.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%0+20.4f %0+20.4F %0+20.4e %0+20.4E %0+20.4g %0+20.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%0 20.4f %0 20.4F %0 20.4e %0 20.4E %0 20.4g %0 20.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%20.4f %20.4F %20.4e %20.4E %20.4g %20.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%-20.4f %-20.4F %-20.4e %-20.4E %-20.4g %-20.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%-+20.4f %-+20.4F %-+20.4e %-+20.4E %-+20.4g %-+20.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%- 20.4f %- 20.4F %- 20.4e %- 20.4E %- 20.4g %- 20.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%+20.4f %+20.4F %+20.4e %+20.4E %+20.4g %+20.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "% 20.4f % 20.4F % 20.4e % 20.4E % 20.4g % 20.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+
+// decimal floats: all flags & combinations (0-+ ) without padding
+let testFloatFlagsWithoutPaddingDecimal () =
+    tf6l "%0.4f %0.4F %0.4e %0.4E %0.4g %0.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%0-.4f %0-.4F %0-.4e %0-.4E %0-.4g %0-.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%0-+.4f %0-+.4F %0-+.4e %0-+.4E %0-+.4g %0-+.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%0- .4f %0- .4F %0- .4e %0- .4E %0- .4g %0- .4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%0+.4f %0+.4F %0+.4e %0+.4E %0+.4g %0+.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%0 .4f %0 .4F %0 .4e %0 .4E %0 .4g %0 .4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%.4f %.4F %.4e %.4E %.4g %.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%-.4f %-.4F %-.4e %-.4E %-.4g %-.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%-+.4f %-+.4F %-+.4e %-+.4E %-+.4g %-+.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%- .4f %- .4F %- .4e %- .4E %- .4g %- .4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%+.4f %+.4F %+.4e %+.4E %+.4g %+.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "% .4f % .4F % .4e % .4E % .4g % .4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
 
 // fixed types (i.e. no variation), no flags
 let testFixedBasic () =
@@ -192,12 +258,18 @@ System.Threading.Thread.CurrentThread.CurrentCulture <- CultureInfo("", NumberFo
 testLiteral ()
 // testLiteralPercent ()
 testIntegerBasic ()
-testIntegerFlagsWithPadding ()
-testIntegerFlagsWithoutPadding ()
+testIntegerFlagsWithPaddingSigned ()
+testIntegerFlagsWithPaddingUnsigned ()
+testIntegerFlagsWithoutPaddingSigned ()
+testIntegerFlagsWithoutPaddingUnsigned ()
 testIntegerComplex ()
 testFloatBasic ()
-testFloatFlagsWithPadding ()
-testFloatFlagsWithoutPadding ()
+testFloatFlagsWithPaddingSingle ()
+testFloatFlagsWithoutPaddingSingle ()
+testFloatFlagsWithPaddingDouble ()
+testFloatFlagsWithoutPaddingDouble ()
+testFloatFlagsWithPaddingDecimal ()
+testFloatFlagsWithoutPaddingDecimal ()
 testFixedBasic ()
 
 printfn "%d tests passed" !testCounter
