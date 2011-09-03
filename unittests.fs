@@ -271,6 +271,9 @@ type W =
 // helper record
 type U = {x: int; y: float; z: string}
 
+// helper private record
+type private V = {x: int; y: float; z: string}
+
 // generic type %O (ToString())
 let testGenericOBasic () =
     tf8 "%O %O %O %O %O %O %O %O" 1y 1 1UL "foo" null true (X()) (Y())
@@ -289,9 +292,51 @@ let testGenericATypes () =
     tf8 "%A %A %A %A %A %A %A %A" 1n 1un 1.f 1.0 1.0m true "oo" 'x'
     tf6 "%A %A %A %A %A %A" (X()) (Y()) testGenericABasic W.One (ref 0) {new U with x = 5 and y = 6.0 and z = "woo"}
 
+// generic type %A, various flags
+let testGenericAFlags () =
+    let u = {new U with x = 5 and y = 6.0 and z = "woo"}
+    let v = {new V with x = 5 and y = 6.0 and z = "woo"}
+    tf5 "%A %A %A %A %A" u v 2.0 true "boo"
+    tf5 "%+A %+A %+A %+A %+A" u v 2.0 true "boo"
+    tf5 "%0A %0A %0A %0A %0A" u v 2.0 true "boo"
+    tf5 "%+0A %+0A %+0A %+0A %+0A" u v 2.0 true "boo"
+    tf5 "%4A %4A %4A %4A %4A" u v 2.0 true "boo"
+    tf5 "%+4A %+4A %+4A %+4A %+4A" u v 2.0 true "boo"
+    tf5 "%04A %04A %04A %04A %04A" u v 2.0 true "boo"
+    tf5 "%+04A %+04A %+04A %+04A %+04A" u v 2.0 true "boo"
+    tf5 "%.2A %.2A %.2A %.2A %.2A" u v 2.0 true "boo"
+    tf5 "%+.2A %+.2A %+.2A %+.2A %+.2A" u v 2.0 true "boo"
+    tf5 "%.0A %.0A %.0A %.0A %.0A" u v 2.0 true "boo"
+    tf5 "%+.0A %+.0A %+.0A %+.0A %+.0A" u v 2.0 true "boo"
+
 // generic type %A, ToString() throw exception
 let testGenericAToStringExn () =
     tf1 "%A" (Z())
+
+// all tests
+let testAll () =
+    testLiteral ()
+    // testLiteralPercent ()
+    testIntegerBasic ()
+    testIntegerFlagsWithPaddingSigned ()
+    testIntegerFlagsWithPaddingUnsigned ()
+    testIntegerFlagsWithoutPaddingSigned ()
+    testIntegerFlagsWithoutPaddingUnsigned ()
+    testIntegerComplex ()
+    testFloatBasic ()
+    testFloatFlagsWithPaddingSingle ()
+    testFloatFlagsWithoutPaddingSingle ()
+    testFloatFlagsWithPaddingDouble ()
+    testFloatFlagsWithoutPaddingDouble ()
+    testFloatFlagsWithPaddingDecimal ()
+    testFloatFlagsWithoutPaddingDecimal ()
+    testFixedBasic ()
+    testFixedFlags ()
+    testGenericOBasic ()
+    testGenericABasic ()
+    testGenericATypes ()
+    testGenericAFlags ()
+    testGenericAToStringExn ()
 
 // make a mess out of the current culture to make sure the culture-related behavior is the same as that of core printf
 let numberFormat = NumberFormatInfo()
@@ -308,27 +353,6 @@ numberFormat.PositiveSign <- "plus"
 
 System.Threading.Thread.CurrentThread.CurrentCulture <- CultureInfo("", NumberFormat = numberFormat)
 
-// run tests
-testLiteral ()
-// testLiteralPercent ()
-testIntegerBasic ()
-testIntegerFlagsWithPaddingSigned ()
-testIntegerFlagsWithPaddingUnsigned ()
-testIntegerFlagsWithoutPaddingSigned ()
-testIntegerFlagsWithoutPaddingUnsigned ()
-testIntegerComplex ()
-testFloatBasic ()
-testFloatFlagsWithPaddingSingle ()
-testFloatFlagsWithoutPaddingSingle ()
-testFloatFlagsWithPaddingDouble ()
-testFloatFlagsWithoutPaddingDouble ()
-testFloatFlagsWithPaddingDecimal ()
-testFloatFlagsWithoutPaddingDecimal ()
-testFixedBasic ()
-testFixedFlags ()
-testGenericOBasic ()
-testGenericABasic ()
-testGenericATypes ()
-testGenericAToStringExn ()
+testAll ()
 
 printfn "%d tests passed" !testCounter

@@ -106,7 +106,13 @@ type Factory =
         basic |> addPadding e
 
     static member CreateGenericString<'T> (e: FormatElement) =
-        fun (o: 'T) -> Printf.sprintf "%A" o
+        let fmt =
+            String.Concat("%",
+                (if hasFlag e.flags FormatFlags.AddSignIfPositive then "+" else ""),
+                (if hasFlag e.flags FormatFlags.ZeroFill then "0" else if e.width > 0 then string e.width else ""),
+                (if e.precision >= 0 then "." + string e.precision else ""),
+                "A")
+        fun (o: 'T) -> Printf.sprintf (Printf.StringFormat<'T -> string>(fmt)) o
 
 let getFormatterFactory (typ: Type) =
     let arg, res = FSharpType.GetFunctionElements typ 
