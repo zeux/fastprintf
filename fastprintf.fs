@@ -81,7 +81,7 @@ type Formatter<'T, 'Result>(ctx: FormatContext) =
     override this.Invoke (v: 'T) =
         match ctx.arg with
         | x :: xs ->
-            let res = ctx.res + ((x.func :?> 'T -> string) v) + x.element.postfix
+            let res = String.Concat(ctx.res, ((x.func :?> 'T -> string) v), x.element.postfix)
             unbox (x.next {new FormatContext with res = res and arg = xs})
         | _ -> failwith "Internal error"
 
