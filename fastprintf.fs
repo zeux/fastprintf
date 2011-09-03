@@ -176,7 +176,7 @@ let toString (e: FormatElement) (typ: Type) =
         | TypeCode.Decimal -> toStringFloat e |> fin<decimal> e
         | _ -> failwithf "Unrecognized type %A" typ
     | 'M' ->
-        if typ = typeof<decimal> then toStringFloat e |> fin<decimal> e
+        if typ = typeof<decimal> then (fun (x: decimal) -> x.ToString()) |> fin<decimal> e
         else failwithf "Unrecognized type %A" typ
     | 's' ->
         if typ = typeof<string> then (fun (x: string) -> x) |> fin<string> e
