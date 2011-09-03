@@ -203,7 +203,7 @@ let fin<'T> e (f: 'T -> string) =
 let toString (e: FormatElement) (typ: Type) =
     match e.typ with
     | 'b' -> (fun x -> if x then "true" else "false") |> fin<bool> e
-    | 'c' -> (fun (x: char) -> x.ToString()) |> fin<char> e
+    | 'c' -> (fun (x: char) -> x.ToString()) |> box
     | 'd' | 'i' | 'u' | 'x' | 'X' | 'o' ->
         if typ = typeof<int8> then toStringInteger e uint8 |> box<int8 -> string>
         else if typ = typeof<uint8> then toStringInteger e uint8 |> box<uint8 -> string>
@@ -234,7 +234,7 @@ let toString (e: FormatElement) (typ: Type) =
         if typ = typeof<decimal> then (fun (x: decimal) -> toStringInvariant x) |> fin<decimal> e
         else failwithf "Unrecognized type %A" typ
     | 's' ->
-        if typ = typeof<string> then (fun (x: string) -> x) |> fin<string> e
+        if typ = typeof<string> then (fun (x: string) -> if x = null then "" else x) |> fin<string> e
         else failwithf "Unrecognized type %A" typ
     | 'O' -> getBoxStringFunction typ
     | 'A' -> getGenericStringFunction e typ

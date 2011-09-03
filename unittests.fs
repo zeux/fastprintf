@@ -232,12 +232,20 @@ let testFloatFlagsWithoutPaddingDecimal () =
     tf6l "%+.4f %+.4F %+.4e %+.4E %+.4g %+.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
     tf6l "% .4f % .4F % .4e % .4E % .4g % .4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
 
-// fixed types (i.e. no variation), no flags
+// misc fixed types (i.e. no variation), no flags
 let testFixedBasic () =
-    tf5 "%M %M %M %M %M" 0.0m 0.1m 10.001m -34.73m 1000000000.343m
     tf2 "%b %b" true false
     tf2 "%c %c" ' ' 'x'
     tf3 "%s %s %s" "" "booo" null
+
+// misc fixed types (i.e. no variation), all flags (only - is supported, thank god) with/without padding
+let testFixedFlags () =
+    tf4 "%10b %10c %10s %10s" true 'x' "booo" null
+    tf4 "%-10b %-10c %-10s %-10s" true 'x' "booo" null
+    tf4 "%1b %1c %1s %1s" true 'x' "booo" null
+    tf4 "%-1b %-1c %-1s %-1s" true 'x' "booo" null
+    tf4 "%b %c %s %s" true 'x' "booo" null
+    tf4 "%-b %-c %-s %-s" true 'x' "booo" null
 
 // make a mess out of the current culture to make sure the culture-related behavior is the same as that of core printf
 let numberFormat = NumberFormatInfo()
@@ -271,5 +279,6 @@ testFloatFlagsWithoutPaddingDouble ()
 testFloatFlagsWithPaddingDecimal ()
 testFloatFlagsWithoutPaddingDecimal ()
 testFixedBasic ()
+testFixedFlags ()
 
 printfn "%d tests passed" !testCounter
