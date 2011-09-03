@@ -93,8 +93,8 @@ type Factory =
     static member CreateBoxString<'T> () =
         fun (o: 'T) -> if Object.ReferenceEquals(o, null) then "<null>" else o.ToString()
 
-    static member CreateGenericString<'T> (display: MethodInfo) (options: obj) (flags: obj) =
-        fun (o: 'T) -> if Object.ReferenceEquals(o, null) then "<null>" else display.Invoke(null, [|options; flags; box o|]) :?> string
+    static member CreateGenericString<'T> () =
+        fun (o: 'T) -> Printf.sprintf "%A" o
 
 let getFormatterFactory (typ: Type) =
     let arg, res = FSharpType.GetFunctionElements typ 
@@ -104,25 +104,7 @@ let getBoxStringFunction (typ: Type) =
     typeof<Factory>.GetMethod("CreateBoxString").MakeGenericMethod([|typ|]).Invoke(null, [||])
 
 let getGenericStringFunction (e: FormatElement) (typ: Type) =
-    let fsharp = typeof<FSharpType>.Assembly
-    let options = fsharp.GetType("Microsoft.FSharp.Text.StructuredPrintfImpl.FormatOptions")
-
-    let opts = options.GetProperty("Default", BindingFlags.NonPublic ||| BindingFlags.Static).GetValue(null, [||])
-
-    // printfn %0A is considered to mean 'print width zero'
-    if e.width > 0 || hasFlag e.flags FormatFlags.ZeroFill then
-        options.GetProperty("PrintWidth", BindingFlags.NonPublic ||| BindingFlags.Instance).SetValue(opts, e.width, [||])
-
-    if e.precision >= 0 then
-        options.GetProperty("PrintSize", BindingFlags.NonPublic ||| BindingFlags.Instance).SetValue(opts, e.precision, [||])
-
-    let display = fsharp.GetType("Microsoft.FSharp.Text.StructuredPrintfImpl.Display")
-    let str = display.GetMethod("anyToStringForPrintf", BindingFlags.NonPublic ||| BindingFlags.Static)
-    let strt = str.MakeGenericMethod([|typ|])
-
-    let flags = if hasFlag e.flags FormatFlags.AddSignIfPositive then BindingFlags.Public ||| BindingFlags.NonPublic else BindingFlags.Public
-
-    typeof<Factory>.GetMethod("CreateGenericString").MakeGenericMethod([|typ|]).Invoke(null, [|strt; opts; box flags|])
+    typeof<Factory>.GetMethod("CreateGenericString").MakeGenericMethod([|typ|]).Invoke(null, [||])
 
 let addPadding (e: FormatElement) (conv: 'a -> string) =
     if e.width = 0 then conv
