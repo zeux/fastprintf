@@ -64,16 +64,16 @@ let parseFormatString (fmt: string) =
             loop e ({el with postfix = fmt.Substring(i, e - i)} :: acc)
 
     let prefix = parseString fmt 0
-    let elements = loop prefix [] |> List.rev
+    let elements = loop prefix []
     let prefixs = fmt.Substring(0, prefix)
 
-    let rec merge (els: FormatElement list) =
+    let rec mergeRev (els: FormatElement list) acc =
         match els with
-        | x :: y :: xs when y.typ = '%' -> merge ({ x with postfix = x.postfix + "%" + y.postfix } :: xs)
-        | x :: xs -> x :: merge xs
-        | [] -> []
+        | x :: y :: xs when x.typ = '%' -> mergeRev ({ y with postfix = y.postfix + "%" + x.postfix } :: xs) acc
+        | x :: xs -> mergeRev xs (x :: acc)
+        | [] -> acc
 
-    match merge elements with
+    match mergeRev elements [] with
     | x :: xs when x.typ = '%' -> prefixs + "%" + x.postfix, xs
     | xs -> prefixs, xs
 
