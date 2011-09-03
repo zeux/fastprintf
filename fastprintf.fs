@@ -286,11 +286,10 @@ let toString (e: FormatElement) (typ: Type) =
             | x -> failwith "Unexpected size for unativeint: %d" x
         else failwithf "Unrecognized type %A" typ
     | 'e' | 'E' | 'f' | 'F' | 'g' | 'G' ->
-        match Type.GetTypeCode(typ) with
-        | TypeCode.Single -> toStringFloat e |> fin<float32> e
-        | TypeCode.Double -> toStringFloat e |> fin<float> e
-        | TypeCode.Decimal -> toStringFloatBasic e |> fin<decimal> e
-        | _ -> failwithf "Unrecognized type %A" typ
+        if typ = typeof<float32> then toStringFloat e |> fin<float32> e
+        else if typ = typeof<float> then toStringFloat e |> fin<float> e
+        else if typ = typeof<decimal> then toStringFloatBasic e |> fin<decimal> e
+        else failwithf "Unrecognized type %A" typ
     | 'M' ->
         if typ = typeof<decimal> then (fun (x: decimal) -> toStringInvariant x) |> fin<decimal> e
         else failwithf "Unrecognized type %A" typ
