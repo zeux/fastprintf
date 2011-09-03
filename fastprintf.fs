@@ -87,26 +87,6 @@ type Formatter<'T, 'Result>(ctx: FormatContext) =
             unbox (x.next {new FormatContext with res = res and arg = xs})
         | _ -> failwith "Internal error"
 
-type Factory =
-    static member CreateFormatter<'T, 'Result> () =
-        fun ctx -> box (Formatter<'T, 'Result>(ctx))
-
-    static member CreateBoxString<'T> () =
-        fun (o: 'T) -> if Object.ReferenceEquals(o, null) then "<null>" else o.ToString()
-
-    static member CreateGenericString<'T> () =
-        fun (o: 'T) -> Printf.sprintf "%A" o
-
-let getFormatterFactory (typ: Type) =
-    let arg, res = FSharpType.GetFunctionElements typ 
-    typeof<Factory>.GetMethod("CreateFormatter").MakeGenericMethod([|arg; res|]).Invoke(null, [||]) :?> (FormatContext -> obj)
-
-let getBoxStringFunction (typ: Type) =
-    typeof<Factory>.GetMethod("CreateBoxString").MakeGenericMethod([|typ|]).Invoke(null, [||])
-
-let getGenericStringFunction (e: FormatElement) (typ: Type) =
-    typeof<Factory>.GetMethod("CreateGenericString").MakeGenericMethod([|typ|]).Invoke(null, [||])
-
 let addPadding (e: FormatElement) (conv: 'a -> string) =
     if e.width = 0 then
         conv
@@ -116,6 +96,27 @@ let addPadding (e: FormatElement) (conv: 'a -> string) =
             fun x -> (conv x).PadRight(e.width, ch)
         else
             fun x -> (conv x).PadLeft(e.width, ch)
+
+type Factory =
+    static member CreateFormatter<'T, 'Result> () =
+        fun ctx -> box (Formatter<'T, 'Result>(ctx))
+
+    static member CreateBoxString<'T> (e: FormatElement) =
+        let basic = fun (o: 'T) -> if Object.ReferenceEquals(o, null) then "<null>" else o.ToString()
+        basic |> addPadding e
+
+    static member CreateGenericString<'T> (e: FormatElement) =
+        fun (o: 'T) -> Printf.sprintf "%A" o
+
+let getFormatterFactory (typ: Type) =
+    let arg, res = FSharpType.GetFunctionElements typ 
+    typeof<Factory>.GetMethod("CreateFormatter").MakeGenericMethod([|arg; res|]).Invoke(null, [||]) :?> (FormatContext -> obj)
+
+let getBoxStringFunction (e: FormatElement) (typ: Type) =
+    typeof<Factory>.GetMethod("CreateBoxString").MakeGenericMethod([|typ|]).Invoke(null, [|box e|])
+
+let getGenericStringFunction (e: FormatElement) (typ: Type) =
+    typeof<Factory>.GetMethod("CreateGenericString").MakeGenericMethod([|typ|]).Invoke(null, [|box e|])
 
 let inline toStringInvariant (x: 'T) =
     (^T: (member ToString: IFormatProvider -> string) (x, CultureInfo.InvariantCulture))
@@ -236,7 +237,7 @@ let toString (e: FormatElement) (typ: Type) =
     | 's' ->
         if typ = typeof<string> then (fun (x: string) -> if x = null then "" else x) |> fin<string> e
         else failwithf "Unrecognized type %A" typ
-    | 'O' -> getBoxStringFunction typ
+    | 'O' -> getBoxStringFunction e typ
     | 'A' -> getGenericStringFunction e typ
     | _ -> failwithf "Unrecognized format type %c" e.typ
 

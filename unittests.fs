@@ -247,6 +247,52 @@ let testFixedFlags () =
     tf4 "%b %c %s %s" true 'x' "booo" null
     tf4 "%-b %-c %-s %-s" true 'x' "booo" null
 
+// helper class type for ToString() testing
+type X() =
+    override this.ToString() =
+        "custom X " + this.GetHashCode().ToString()
+
+// helper value type for ToString() testing
+[<Struct>]
+type Y =
+    override this.ToString() =
+        "custom Y struct"
+
+// helper class type for ToString() exception testing
+type Z() =
+    override this.ToString () =
+        failwith "oops"
+
+// helper enum
+type W =
+| One = 1
+| Two = 2
+
+// helper record
+type U = {x: int; y: float; z: string}
+
+// generic type %O (ToString())
+let testGenericOBasic () =
+    tf8 "%O %O %O %O %O %O %O %O" 1y 1 1UL "foo" null true (X()) (Y())
+    tf8 "%10O %10O %10O %10O %10O %10O %10O %10O" 1y 1 1UL "foo" null true (X()) (Y())
+    tf8 "%-10O %-10O %-10O %-10O %-10O %-10O %-10O %-10O" 1y 1 1UL "foo" null true (X()) (Y())
+
+// generic type %A
+let testGenericABasic () =
+    tf8 "%A %A %A %A %A %A %A %A" 1y 1 1UL "foo" null true (X()) (Y())
+    tf8 "%10A %10A %10A %10A %10A %10A %10A %10A" 1y 1 1UL "foo" null true (X()) (Y())
+    tf8 "%-10A %-10A %-10A %-10A %-10A %-10A %-10A %-10A" 1y 1 1UL "foo" null true (X()) (Y())
+
+// generic type %A, various types
+let testGenericATypes () =
+    tf8 "%A %A %A %A %A %A %A %A" 1y 1uy 1s 1us 1 1u 1L 1UL
+    tf8 "%A %A %A %A %A %A %A %A" 1n 1un 1.f 1.0 1.0m true "oo" 'x'
+    tf6 "%A %A %A %A %A %A" (X()) (Y()) testGenericABasic W.One (ref 0) {new U with x = 5 and y = 6.0 and z = "woo"}
+
+// generic type %A, ToString() throw exception
+let testGenericAToStringExn () =
+    tf1 "%A" (Z())
+
 // make a mess out of the current culture to make sure the culture-related behavior is the same as that of core printf
 let numberFormat = NumberFormatInfo()
 numberFormat.NaNSymbol <- "no way"
@@ -280,5 +326,9 @@ testFloatFlagsWithPaddingDecimal ()
 testFloatFlagsWithoutPaddingDecimal ()
 testFixedBasic ()
 testFixedFlags ()
+testGenericOBasic ()
+testGenericABasic ()
+testGenericATypes ()
+testGenericAToStringExn ()
 
 printfn "%d tests passed" !testCounter
