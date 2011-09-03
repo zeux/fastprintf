@@ -2,6 +2,7 @@ module FastPrintf
 
 open System
 open System.Collections.Generic
+open System.Globalization
 open System.Reflection
 
 open Microsoft.FSharp.Reflection
@@ -115,23 +116,30 @@ let addPadding (e: FormatElement) (conv: 'a -> string) =
         else
             fun x -> (conv x).PadRight(e.width, ch)
 
+let inline toStringInvariant (x: ^T) =
+    (^T: (member ToString: IFormatProvider -> string) (x, CultureInfo.InvariantCulture))
+
+let inline toStringFormatInvariant (x: ^T) format =
+    (^T: (member ToString: string -> IFormatProvider -> string) (x, format, CultureInfo.InvariantCulture))
+
 let inline toStringInteger (e: FormatElement) unsigned : ^T -> string =
     match e.typ with
     | 'd' | 'i' ->
         if hasFlag e.flags FormatFlags.AddSignIfPositive || hasFlag e.flags FormatFlags.AddSpaceIfPositive then
             let pad = if hasFlag e.flags FormatFlags.AddSignIfPositive then "+" else " "
-            fun (x: 'T) -> let s = x.ToString() in if x >= Unchecked.defaultof<'T> then pad + s else s
+            fun (x: 'T) -> let s = toStringInvariant x in if x >= Unchecked.defaultof<'T> then pad + s else s
         else
-            fun (x: 'T) -> x.ToString()
-    | 'u' -> fun (x: 'T) -> (x |> unsigned).ToString()
-    | 'x' -> fun (x: ^T) -> (^T: (member ToString: string -> string) (x, "x"))
-    | 'X' -> fun (x: ^T) -> (^T: (member ToString: string -> string) (x, "X"))
+            fun (x: 'T) -> toStringInvariant x
+    | 'u' -> fun (x: 'T) -> toStringInvariant (x |> unsigned)
+    | 'x' -> fun (x: ^T) -> toStringFormatInvariant x "x"
+    | 'X' -> fun (x: ^T) -> toStringFormatInvariant x "X"
     | 'o' -> fun (x: 'T) -> Convert.ToString(x |> unsigned |> int64, 8)
     | _ -> failwithf "Unrecognized integer type specifier '%c'" e.typ
 
 let inline toStringFloat (e: FormatElement) : ^T -> string =
     let fmt = e.typ.ToString() + (if e.precision < 0 then "6" else (max (min e.precision 99) 0).ToString())
-    fun (x: 'T) -> (^T: (member ToString: string -> string) (x, fmt))
+    
+    fun (x: 'T) -> toStringFormatInvariant x fmt
 
 let fin<'T> e (f: 'T -> string) =
     f |> addPadding e |> box
@@ -158,7 +166,7 @@ let toString (e: FormatElement) (typ: Type) =
         | TypeCode.Decimal -> toStringFloat e |> fin<decimal> e
         | _ -> failwithf "Unrecognized type %A" typ
     | 'M' ->
-        if typ = typeof<decimal> then (fun (x: decimal) -> x.ToString()) |> fin<decimal> e
+        if typ = typeof<decimal> then (fun (x: decimal) -> toStringInvariant x) |> fin<decimal> e
         else failwithf "Unrecognized type %A" typ
     | 's' ->
         if typ = typeof<string> then (fun (x: string) -> x) |> fin<string> e
