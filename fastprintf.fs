@@ -116,13 +116,13 @@ let addPadding (e: FormatElement) (conv: 'a -> string) =
         else
             fun x -> (conv x).PadRight(e.width, ch)
 
-let inline toStringInvariant (x: ^T) =
+let inline toStringInvariant (x: 'T) =
     (^T: (member ToString: IFormatProvider -> string) (x, CultureInfo.InvariantCulture))
 
-let inline toStringFormatInvariant (x: ^T) format =
+let inline toStringFormatInvariant (x: 'T) format =
     (^T: (member ToString: string -> IFormatProvider -> string) (x, format, CultureInfo.InvariantCulture))
 
-let inline toStringInteger (e: FormatElement) unsigned : ^T -> string =
+let inline toStringInteger (e: FormatElement) unsigned : 'T -> string =
     match e.typ with
     | 'd' | 'i' ->
         if hasFlag e.flags FormatFlags.AddSignIfPositive || hasFlag e.flags FormatFlags.AddSpaceIfPositive then
@@ -131,12 +131,12 @@ let inline toStringInteger (e: FormatElement) unsigned : ^T -> string =
         else
             fun (x: 'T) -> toStringInvariant x
     | 'u' -> fun (x: 'T) -> toStringInvariant (x |> unsigned)
-    | 'x' -> fun (x: ^T) -> toStringFormatInvariant x "x"
-    | 'X' -> fun (x: ^T) -> toStringFormatInvariant x "X"
+    | 'x' -> fun (x: 'T) -> toStringFormatInvariant x "x"
+    | 'X' -> fun (x: 'T) -> toStringFormatInvariant x "X"
     | 'o' -> fun (x: 'T) -> Convert.ToString(x |> unsigned |> int64, 8)
     | _ -> failwithf "Unrecognized integer type specifier '%c'" e.typ
 
-let inline toStringFloat (e: FormatElement) : ^T -> string =
+let inline toStringFloat (e: FormatElement) : 'T -> string =
     let fmt = e.typ.ToString() + (if e.precision < 0 then "6" else (max (min e.precision 99) 0).ToString())
     
     fun (x: 'T) -> toStringFormatInvariant x fmt
@@ -149,16 +149,25 @@ let toString (e: FormatElement) (typ: Type) =
     | 'b' -> (fun x -> if x then "true" else "false") |> box
     | 'c' -> (fun (x: char) -> x.ToString()) |> box
     | 'd' | 'i' | 'u' | 'x' | 'X' | 'o' ->
-        match Type.GetTypeCode(typ) with
-        | TypeCode.SByte -> toStringInteger e uint8 |> fin<int8> e
-        | TypeCode.Byte -> toStringInteger e uint8 |> fin<uint8> e
-        | TypeCode.Int16 -> toStringInteger e uint16 |> fin<int16> e
-        | TypeCode.UInt16 -> toStringInteger e uint16 |> fin<uint16> e
-        | TypeCode.Int32 -> toStringInteger e uint32 |> fin<int32> e
-        | TypeCode.UInt32 -> toStringInteger e uint32 |> fin<uint32> e
-        | TypeCode.Int64 -> toStringInteger e uint64 |> fin<int64> e
-        | TypeCode.UInt64 -> toStringInteger e uint64 |> fin<uint64> e
-        | _ -> failwithf "Unrecognized type %A" typ
+        if typ = typeof<int8> then toStringInteger e uint8 |> fin<int8> e
+        else if typ = typeof<uint8> then toStringInteger e uint8 |> fin<uint8> e
+        else if typ = typeof<int16> then toStringInteger e uint16 |> fin<int16> e
+        else if typ = typeof<uint16> then toStringInteger e uint16 |> fin<uint16> e
+        else if typ = typeof<int32> then toStringInteger e uint32 |> fin<int32> e
+        else if typ = typeof<uint32> then toStringInteger e uint32 |> fin<uint32> e
+        else if typ = typeof<int64> then toStringInteger e uint64 |> fin<int64> e
+        else if typ = typeof<uint64> then toStringInteger e uint64 |> fin<uint64> e
+        else if typ = typeof<nativeint> then
+            match sizeof<nativeint> with
+            | 4 -> (fun x -> int32 x |> toStringInteger e uint32) |> fin<nativeint> e
+            | 8 -> (fun x -> int64 x |> toStringInteger e uint64) |> fin<nativeint> e
+            | x -> failwith "Unexpected size for nativeint: %d" x
+        else if typ = typeof<unativeint> then
+            match sizeof<unativeint> with
+            | 4 -> (fun x -> uint32 x |> toStringInteger e uint32) |> fin<unativeint> e
+            | 8 -> (fun x -> uint64 x |> toStringInteger e uint64) |> fin<unativeint> e
+            | x -> failwith "Unexpected size for unativeint: %d" x
+        else failwithf "Unrecognized type %A" typ
     | 'e' | 'E' | 'f' | 'F' | 'g' | 'G' ->
         match Type.GetTypeCode(typ) with
         | TypeCode.Single -> toStringFloat e |> fin<float32> e

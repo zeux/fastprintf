@@ -60,8 +60,8 @@ let testIntegerBasic () =
     tf6l "%d %i %o %u %x %X" [0u; 42u; 2147483647u; 4294967295u]
     tf6l "%d %i %o %u %x %X" [0L; 42L; 9223372036854775807L; -9223372036854775808L]
     tf6l "%d %i %o %u %x %X" [0UL; 42UL; 9223372036854775807UL; 18446744073709551615UL]
-    // tf6l "%d %i %o %u %x %X" [0n; 42n 42n; 2147483647n; -2147483648n]
-    // tf6l "%d %i %o %u %x %X" [0un; 42un; 2147483647un; 4294967295un]
+    tf6l "%d %i %o %u %x %X" [0n; 42n; 2147483647n; -2147483648n]
+    tf6l "%d %i %o %u %x %X" [0un; 42un; 2147483647un; 4294967295un]
 
 // floats: no flags, all types
 let testFloatBasic () =
