@@ -321,7 +321,7 @@ let testGenericAToStringExn () =
 // all tests
 let testAll () =
     testLiteral ()
-    // testLiteralPercent ()
+    testLiteralPercent ()
     testIntegerBasic ()
     testIntegerFlagsWithPaddingSigned ()
     testIntegerFlagsWithPaddingUnsigned ()

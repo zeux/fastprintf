@@ -64,7 +64,18 @@ let parseFormatString (fmt: string) =
             loop e ({el with postfix = fmt.Substring(i, e - i)} :: acc)
 
     let prefix = parseString fmt 0
-    fmt.Substring(0, prefix), loop prefix [] |> List.rev
+    let elements = loop prefix [] |> List.rev
+    let prefixs = fmt.Substring(0, prefix)
+
+    let rec merge (els: FormatElement list) =
+        match els with
+        | x :: y :: xs when y.typ = '%' -> merge ({ x with postfix = x.postfix + "%" + y.postfix } :: xs)
+        | x :: xs -> x :: merge xs
+        | [] -> []
+
+    match merge elements with
+    | x :: xs when x.typ = '%' -> prefixs + "%" + x.postfix, xs
+    | xs -> prefixs, xs
 
 type FormatPart =
     { func: obj // 'T -> string
