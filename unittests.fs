@@ -1,5 +1,8 @@
 module UnitTests
 
+open System
+open System.Globalization
+
 let testCounter = ref 0
 
 let (=!) x y =
@@ -62,8 +65,8 @@ let testIntegerBasic () =
 
 // floats: no flags, all types
 let testFloatBasic () =
-    tf6l "%f %F %e %E %g %G" [0.f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; System.Single.NaN]
-    tf6l "%f %F %e %E %g %G" [0.0; 0.1; 10.001; -34.73; 1000000000.343; infinity; -infinity; System.Double.NaN]
+    tf6l "%f %F %e %E %g %G" [0.f; 0.1f; 10.001f; -34.73f; 1000000000.343f; infinityf; -infinityf; nanf]
+    tf6l "%f %F %e %E %g %G" [0.0; 0.1; 10.001; -34.73; 1000000000.343; infinity; -infinity; nan]
     tf6l "%f %F %e %E %g %G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
 
 // fixed types (i.e. no variation), no flags
@@ -73,6 +76,22 @@ let testFixedBasic () =
     tf2 "%c %c" ' ' 'x'
     tf3 "%s %s %s" "" "booo" null
 
+// make a mess out of the current culture to make sure the culture-related behavior is the same as that of core printf
+let numberFormat = NumberFormatInfo()
+numberFormat.NaNSymbol <- "no way"
+numberFormat.NegativeInfinitySymbol <- "very small"
+numberFormat.NegativeSign <- "minus"
+numberFormat.NumberDecimalDigits <- 1
+numberFormat.NumberDecimalSeparator <- "`"
+numberFormat.NumberGroupSeparator <- ","
+numberFormat.NumberGroupSizes <- [|4; 1|]
+numberFormat.NumberNegativePattern <- 3
+numberFormat.PositiveInfinitySymbol <- "very large"
+numberFormat.PositiveSign <- "plus"
+
+System.Threading.Thread.CurrentThread.CurrentCulture <- CultureInfo("", NumberFormat = numberFormat)
+
+// run tests
 testLiteral ()
 // testLiteralPercent ()
 testIntegerBasic ()
