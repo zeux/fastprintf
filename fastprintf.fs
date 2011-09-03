@@ -205,8 +205,11 @@ let sprintf (fmt: PrintfFormat<'a, _, _, string>) =
     let prefix, els = parseFormatString fmt.Value
     let parts = getFormatParts els typeof<'a>
     let ctx = { new FormatContext with res = prefix and arg = parts }
-    let start = getFormatterFactory typeof<'a>
-    unbox (start ctx): 'a
+    if FSharpType.IsFunction typeof<'a> then
+        let start = getFormatterFactory typeof<'a>
+        unbox (start ctx): 'a
+    else
+        unbox prefix: 'a
 
 let cache = Dictionary<string, string * FormatPart list * (FormatContext -> obj)>()
 

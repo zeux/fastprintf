@@ -73,7 +73,7 @@ let testFixedBasic () =
     tf2 "%c %c" ' ' 'x'
     tf3 "%s %s %s" "" "booo" null
 
-// testLiteral ()
+testLiteral ()
 // testLiteralPercent ()
 testIntegerBasic ()
 testFloatBasic ()
