@@ -169,13 +169,13 @@ type Factory =
                 (if hasFlag e.flags FormatFlags.ZeroFill then "0" else if e.width > 0 then string e.width else ""),
                 (if e.precision >= 0 then "." + string e.precision else ""),
                 "A")
-        fun (o: 'T) ->
-            if fmt = "%A" then
+        if fmt = "%A" then
+            fun (o: 'T) ->
                 let s = genericPrintOpt (box o)
                 if s <> null then s
                 else Printf.sprintf (Printf.StringFormat<'T -> string>(fmt)) o
-            else
-                Printf.sprintf (Printf.StringFormat<'T -> string>(fmt)) o
+        else
+            fun (o: 'T) -> Printf.sprintf (Printf.StringFormat<'T -> string>(fmt)) o
 
 let funTy = typedefof<_ -> _>
 
