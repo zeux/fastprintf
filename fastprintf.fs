@@ -86,16 +86,6 @@ and FormatContext =
     { res: string
       arg: FormatPart list }
 
-type Formatter<'T, 'Result>(ctx: FormatContext) =
-    inherit FSharpFunc<'T, 'Result>()
-
-    override this.Invoke (v: 'T) =
-        match ctx.arg with
-        | x :: xs ->
-            let res = String.Concat(ctx.res, ((x.func :?> 'T -> string) v), x.element.postfix)
-            unbox (x.next {new FormatContext with res = res and arg = xs})
-        | _ -> failwith "Internal error"
-
 let addPadding (e: FormatElement) (conv: 'a -> string) =
     if e.width = 0 then
         conv
@@ -155,8 +145,15 @@ let genericPrintOpt (o: obj) =
     | _ -> null
 
 type Factory =
-    static member CreateFormatter<'T, 'Result> () =
-        fun ctx -> box (Formatter<'T, 'Result>(ctx))
+    static member CreateStringFormatter<'T, 'Result> () =
+        fun (ctx: FormatContext) ->
+            fun (v: 'T) ->
+                match ctx.arg with
+                | x :: xs ->
+                    let res = String.Concat(ctx.res, ((x.func :?> 'T -> string) v), x.element.postfix)
+                    unbox (x.next {new FormatContext with res = res and arg = xs}) : 'Result
+                | _ -> failwith "Internal error"
+            |> box
 
     static member CreateBoxString<'T> (e: FormatElement) =
         let basic = fun (o: 'T) -> if Object.ReferenceEquals(o, null) then "<null>" else o.ToString()
@@ -187,9 +184,9 @@ let getFunctionElements (typ: Type) =
     | [|car; cdr|] -> car, cdr
     | _ -> failwithf "Type %A is not a function type" typ
 
-let getFormatterFactory (typ: Type) =
+let getStringFormatterFactory (typ: Type) =
     let arg, res = getFunctionElements typ 
-    typeof<Factory>.GetMethod("CreateFormatter").MakeGenericMethod([|arg; res|]).Invoke(null, [||]) :?> (FormatContext -> obj)
+    typeof<Factory>.GetMethod("CreateStringFormatter").MakeGenericMethod([|arg; res|]).Invoke(null, [||]) :?> (FormatContext -> obj)
 
 let getBoxStringFunction (e: FormatElement) (typ: Type) =
     typeof<Factory>.GetMethod("CreateBoxString").MakeGenericMethod([|typ|]).Invoke(null, [|box e|])
@@ -329,7 +326,7 @@ let rec getFormatParts (els: FormatElement list) (typ: Type) =
         let str = toString x arg
         let next =
             if isFunctionType res then
-                getFormatterFactory res
+                getStringFormatterFactory res
             else
                 if res <> typeof<string> then failwithf "Residue %A" res
                 fun ctx -> ctx.res.ToString() |> box
@@ -340,7 +337,7 @@ let sprintf (fmt: PrintfFormat<'a, _, _, string>) =
     let parts = getFormatParts els typeof<'a>
     let ctx = { new FormatContext with res = prefix and arg = parts }
     if isFunctionType typeof<'a> then
-        let start = getFormatterFactory typeof<'a>
+        let start = getStringFormatterFactory typeof<'a>
         unbox (start ctx): 'a
     else
         unbox prefix: 'a
@@ -354,7 +351,7 @@ let sprintfc (fmt: PrintfFormat<'a, _, _, string>) =
         | _ ->
             let prefix, els = parseFormatString fmt.Value
             let parts = getFormatParts els typeof<'a>
-            let start = getFormatterFactory typeof<'a>
+            let start = getStringFormatterFactory typeof<'a>
             cache.Add(fmt.Value, (prefix, parts, start))
             prefix, parts, start
 
