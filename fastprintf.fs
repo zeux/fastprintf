@@ -77,15 +77,6 @@ let parseFormatString (fmt: string) =
     | x :: xs when x.typ = '%' -> prefixs + "%" + x.postfix, xs
     | xs -> prefixs, xs
 
-type FormatPart =
-    { func: obj // 'T -> string
-      element: FormatElement
-      next: FormatContext -> obj }
-
-and FormatContext =
-    { res: string
-      arg: FormatPart list }
-
 let addPadding (e: FormatElement) (conv: 'a -> string) =
     if e.width = 0 then
         conv
@@ -145,15 +136,11 @@ let genericPrintOpt (o: obj) =
     | _ -> null
 
 type Factory =
-    static member CreateStringFormatter<'T, 'Result> () =
-        fun (ctx: FormatContext) ->
+    static member CreateStringFormatter<'T, 'Result> (e: FormatElement) (func: 'T -> string) (next: string -> 'Result) =
+        fun (state: string) ->
             fun (v: 'T) ->
-                match ctx.arg with
-                | x :: xs ->
-                    let res = String.Concat(ctx.res, ((x.func :?> 'T -> string) v), x.element.postfix)
-                    unbox (x.next {new FormatContext with res = res and arg = xs}) : 'Result
-                | _ -> failwith "Internal error"
-            |> box
+                let state' = String.Concat(state, func v, e.postfix)
+                next state'
 
     static member CreateBoxString<'T> (e: FormatElement) =
         let basic = fun (o: 'T) -> if Object.ReferenceEquals(o, null) then "<null>" else o.ToString()
@@ -184,9 +171,8 @@ let getFunctionElements (typ: Type) =
     | [|car; cdr|] -> car, cdr
     | _ -> failwithf "Type %A is not a function type" typ
 
-let getStringFormatterFactory (typ: Type) =
-    let arg, res = getFunctionElements typ 
-    typeof<Factory>.GetMethod("CreateStringFormatter").MakeGenericMethod([|arg; res|]).Invoke(null, [||]) :?> (FormatContext -> obj)
+let getStringFormatterFactory e func next arg res =
+    typeof<Factory>.GetMethod("CreateStringFormatter").MakeGenericMethod([|arg; res|]).Invoke(null, [|box e; box func; box next|])
 
 let getBoxStringFunction (e: FormatElement) (typ: Type) =
     typeof<Factory>.GetMethod("CreateBoxString").MakeGenericMethod([|typ|]).Invoke(null, [|box e|])
@@ -256,7 +242,6 @@ let inline toStringFloatBasic (e: FormatElement) : 'T -> string =
     else
         fun (x: 'T) -> toStringFormatInvariant x fmt
 
-
 let inline floatIsFinite (x: 'T) =
     not (^T: (static member IsPositiveInfinity: 'T -> bool) x) &&
     not (^T: (static member IsNegativeInfinity: 'T -> bool) x) &&
@@ -316,44 +301,36 @@ let toString (e: FormatElement) (typ: Type) =
     | 'A' -> getGenericStringFunction e typ
     | _ -> failwithf "Unrecognized format type %c" e.typ
 
-let rec getFormatParts (els: FormatElement list) (typ: Type) =
+let rec getFormatter (els: FormatElement list) (typ: Type) =
     match els with
     | [] ->
         if typ <> typeof<string> then failwithf "Residue %A" typ
-        []
+        fun (state: string) -> state
+        |> box
     | x :: xs ->
         let arg, res = getFunctionElements typ 
+
         let str = toString x arg
-        let next =
-            if isFunctionType res then
-                getStringFormatterFactory res
-            else
-                if res <> typeof<string> then failwithf "Residue %A" res
-                fun ctx -> ctx.res.ToString() |> box
-        { new FormatPart with func = str and element = x and next = next } :: getFormatParts xs res
+        let next = getFormatter xs res
+
+        getStringFormatterFactory x str next arg res
+        |> box
 
 let sprintf (fmt: PrintfFormat<'a, _, _, string>) =
     let prefix, els = parseFormatString fmt.Value
-    let parts = getFormatParts els typeof<'a>
-    let ctx = { new FormatContext with res = prefix and arg = parts }
-    if isFunctionType typeof<'a> then
-        let start = getStringFormatterFactory typeof<'a>
-        unbox (start ctx): 'a
-    else
-        unbox prefix: 'a
+    let formatter = getFormatter els typeof<'a>
+    (formatter :?> string -> 'a) prefix
 
-let cache = Dictionary<string, string * FormatPart list * (FormatContext -> obj)>()
+let cache = Dictionary<string, string * obj>()
 
 let sprintfc (fmt: PrintfFormat<'a, _, _, string>) =
-    let prefix, parts, start =
+    let prefix, formatter =
         match cache.TryGetValue(fmt.Value) with
         | true, v -> v
         | _ ->
             let prefix, els = parseFormatString fmt.Value
-            let parts = getFormatParts els typeof<'a>
-            let start = getStringFormatterFactory typeof<'a>
-            cache.Add(fmt.Value, (prefix, parts, start))
-            prefix, parts, start
+            let formatter = getFormatter els typeof<'a>
+            cache.Add(fmt.Value, (prefix, formatter))
+            prefix, formatter
 
-    let ctx = { new FormatContext with res = prefix and arg = parts }
-    unbox (start ctx): 'a
+    (formatter :?> string -> 'a) prefix
