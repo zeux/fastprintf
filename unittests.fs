@@ -318,6 +318,33 @@ let testGenericAFlags () =
 let testGenericAToStringExn () =
     tf1 "%A" (Z())
 
+// currying (test for lack of visible internal state)
+let testCurry () =
+    let f = FastPrintf.sprintf "[%d %f %s %A]"
+    let v1 = f 1
+    let v2 = f 2
+    let v11 = v1 1.0
+    let v12 = v1 2.0
+    let v21 = v2 1.0
+    let v22 = v2 2.0
+    let v111 = v11 "a"
+    let v112 = v11 "b"
+    let v121 = v12 "a"
+    let v122 = v12 "b"
+    let v211 = v21 "a"
+    let v212 = v21 "b"
+    let v221 = v22 "a"
+    let v222 = v22 "b"
+
+    v111 W.One =! "[1 1.000000 a One]"
+    v112 W.One =! "[1 1.000000 b One]"
+    v121 W.One =! "[1 2.000000 a One]"
+    v122 W.One =! "[1 2.000000 b One]"
+    v211 W.One =! "[2 1.000000 a One]"
+    v212 W.One =! "[2 1.000000 b One]"
+    v221 W.One =! "[2 2.000000 a One]"
+    v222 W.One =! "[2 2.000000 b One]"
+
 // all tests
 let testAll () =
     testLiteral ()
@@ -342,6 +369,7 @@ let testAll () =
     testGenericATypes ()
     testGenericAFlags ()
     testGenericAToStringExn ()
+    testCurry ()
 
 // make a mess out of the current culture to make sure the culture-related behavior is the same as that of core printf
 let numberFormat = NumberFormatInfo()
