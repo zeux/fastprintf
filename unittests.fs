@@ -232,6 +232,13 @@ let testFloatFlagsWithoutPaddingDecimal () =
     tf6l "%+.4f %+.4F %+.4e %+.4E %+.4g %+.4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
     tf6l "% .4f % .4F % .4e % .4E % .4g % .4G" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
 
+// decimals: all flags & combinations (0-+ ) with/without padding
+let testDecimalFlags () =
+    tf6l "%020.4M %0-20.4M %0-+20.4M %0- 20.4M %0+20.4M %0 20.4M" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%20.4M %-20.4M %-+20.4M %- 20.4M %+20.4M % 20.4M" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%0.4M %0-.4M %0-+.4M %0- .4M %0+.4M %0 .4M" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+    tf6l "%.4M %-.4M %-+.4M %- .4M %+.4M % .4M" [0.0m; 0.1m; 10.001m; -34.73m; 1000000000.343m]
+
 // misc fixed types (i.e. no variation), no flags
 let testFixedBasic () =
     tf2 "%b %b" true false
@@ -362,6 +369,7 @@ let testAll () =
     testFloatFlagsWithoutPaddingDouble ()
     testFloatFlagsWithPaddingDecimal ()
     testFloatFlagsWithoutPaddingDecimal ()
+    testDecimalFlags ()
     testFixedBasic ()
     testFixedFlags ()
     testGenericOBasic ()

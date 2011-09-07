@@ -229,9 +229,7 @@ let getFloatFormat (e: FormatElement) =
 let getFloatSign (e: FormatElement) =
     if hasFlag e.flags FormatFlags.AddSpaceIfPositive then " " else "+"
 
-let inline toStringFloatBasic (e: FormatElement) : 'T -> string =
-    let fmt = getFloatFormat e
-
+let inline toStringFloatBasic fmt (e: FormatElement) : 'T -> string =
     if hasFlag e.flags FormatFlags.AddSignIfPositive || hasFlag e.flags FormatFlags.AddSpaceIfPositive then
         fun (x: 'T) ->
             let s = toStringFormatInvariant x fmt
@@ -248,7 +246,7 @@ let inline floatIsFinite (x: 'T) =
     not (^T: (static member IsNaN: 'T -> bool) x)
 
 let inline toStringFloat (e: FormatElement) : 'T -> string =
-    let basic = toStringFloatBasic e
+    let basic = toStringFloatBasic (getFloatFormat e) e
 
     if e.width = 0 && e.flags = FormatFlags.None then
         basic
@@ -289,10 +287,10 @@ let toString (e: FormatElement) (typ: Type) =
     | 'e' | 'E' | 'f' | 'F' | 'g' | 'G' ->
         if typ = typeof<float32> then toStringFloat e |> fin<float32> e
         else if typ = typeof<float> then toStringFloat e |> fin<float> e
-        else if typ = typeof<decimal> then toStringFloatBasic e |> fin<decimal> e
+        else if typ = typeof<decimal> then toStringFloatBasic (getFloatFormat e) e |> fin<decimal> e
         else failwithf "Unrecognized type %A" typ
     | 'M' ->
-        if typ = typeof<decimal> then (fun (x: decimal) -> toStringInvariant x) |> fin<decimal> e
+        if typ = typeof<decimal> then toStringFloatBasic "G" e |> fin<decimal> e
         else failwithf "Unrecognized type %A" typ
     | 's' ->
         if typ = typeof<string> then (fun (x: string) -> if x = null then "" else x) |> fin<string> e
