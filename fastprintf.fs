@@ -257,12 +257,9 @@ let inline toStringFloat (e: FormatElement) : 'T -> string =
         if hasFlag e.flags FormatFlags.LeftJustify then s.PadRight(e.width, ch)
         else s.PadLeft(e.width, ch)
 
-let fin<'T> e (f: 'T -> string) =
-    f |> addPadding e |> box
-
 let toString (e: FormatElement) (typ: Type) =
     match e.typ with
-    | 'b' -> (fun x -> if x then "true" else "false") |> fin<bool> e
+    | 'b' -> (fun x -> if x then "true" else "false") |> addPadding e |> box
     | 'c' -> (fun (x: char) -> x.ToString()) |> box
     | 'd' | 'i' | 'u' | 'x' | 'X' | 'o' ->
         if typ = typeof<int8> then toStringInteger e uint8 |> box<int8 -> string>
@@ -275,25 +272,25 @@ let toString (e: FormatElement) (typ: Type) =
         else if typ = typeof<uint64> then toStringInteger e uint64 |> box<uint64 -> string>
         else if typ = typeof<nativeint> then
             match sizeof<nativeint> with
-            | 4 -> (fun x -> int32 x |> toStringInteger e uint32) |> fin<nativeint> e
-            | 8 -> (fun x -> int64 x |> toStringInteger e uint64) |> fin<nativeint> e
+            | 4 -> (fun x -> int32 x |> toStringInteger e uint32) |> box<nativeint -> string>
+            | 8 -> (fun x -> int64 x |> toStringInteger e uint64) |> box<nativeint -> string>
             | x -> failwith "Unexpected size for nativeint: %d" x
         else if typ = typeof<unativeint> then
             match sizeof<unativeint> with
-            | 4 -> (fun x -> uint32 x |> toStringInteger e uint32) |> fin<unativeint> e
-            | 8 -> (fun x -> uint64 x |> toStringInteger e uint64) |> fin<unativeint> e
+            | 4 -> (fun x -> uint32 x |> toStringInteger e uint32) |> box<unativeint -> string>
+            | 8 -> (fun x -> uint64 x |> toStringInteger e uint64) |> box<unativeint -> string>
             | x -> failwith "Unexpected size for unativeint: %d" x
         else failwithf "Unrecognized type %A" typ
     | 'e' | 'E' | 'f' | 'F' | 'g' | 'G' ->
-        if typ = typeof<float32> then toStringFloat e |> fin<float32> e
-        else if typ = typeof<float> then toStringFloat e |> fin<float> e
-        else if typ = typeof<decimal> then toStringFloatBasic (getFloatFormat e) e |> fin<decimal> e
+        if typ = typeof<float32> then toStringFloat e |> box<float32 -> string>
+        else if typ = typeof<float> then toStringFloat e |> box<float -> string>
+        else if typ = typeof<decimal> then toStringFloatBasic (getFloatFormat e) e |> addPadding e |> box<decimal -> string>
         else failwithf "Unrecognized type %A" typ
     | 'M' ->
-        if typ = typeof<decimal> then toStringFloatBasic "G" e |> fin<decimal> e
+        if typ = typeof<decimal> then toStringFloatBasic "G" e |> addPadding e |> box<decimal -> string>
         else failwithf "Unrecognized type %A" typ
     | 's' ->
-        if typ = typeof<string> then (fun (x: string) -> if x = null then "" else x) |> fin<string> e
+        if typ = typeof<string> then (fun (x: string) -> if x = null then "" else x) |> addPadding e |> box
         else failwithf "Unrecognized type %A" typ
     | 'O' -> getBoxStringFunction e typ
     | 'A' -> getGenericStringFunction e typ
