@@ -136,10 +136,10 @@ let genericPrintOpt (o: obj) =
     | _ -> null
 
 type Factory =
-    static member CreateStringFormatter<'T, 'Result> (e: FormatElement) (func: 'T -> string) (next: string -> 'Result) =
-        fun (state: string) ->
+    static member CreateStringFormatter<'T, 'Result> (e: FormatElement) (func: 'T -> string) (next: (string -> string) -> 'Result) =
+        fun (state: string -> string) ->
             fun (v: 'T) ->
-                let state' = String.Concat(state, func v, e.postfix)
+                let state' acc = String.Concat(state acc, func v, e.postfix)
                 next state'
 
     static member CreateBoxString<'T> (e: FormatElement) =
@@ -300,7 +300,7 @@ let rec getFormatter (els: FormatElement list) (typ: Type) =
     match els with
     | [] ->
         if typ <> typeof<string> then failwithf "Residue %A" typ
-        fun (state: string) -> state
+        fun (state: string -> string) -> state ""
         |> box
     | x :: xs ->
         let arg, res = getFunctionElements typ 
@@ -314,18 +314,14 @@ let rec getFormatter (els: FormatElement list) (typ: Type) =
 let sprintf (fmt: PrintfFormat<'a, _, _, string>) =
     let prefix, els = parseFormatString fmt.Value
     let formatter = getFormatter els typeof<'a>
-    (formatter :?> string -> 'a) prefix
+    (formatter :?> (string -> string) -> 'a) (fun _ -> prefix)
 
-let cache = Dictionary<string, string * obj>()
+let cache = Dictionary<string, obj>()
 
 let sprintfc (fmt: PrintfFormat<'a, _, _, string>) =
-    let prefix, formatter =
-        match cache.TryGetValue(fmt.Value) with
-        | true, v -> v
-        | _ ->
-            let prefix, els = parseFormatString fmt.Value
-            let formatter = getFormatter els typeof<'a>
-            cache.Add(fmt.Value, (prefix, formatter))
-            prefix, formatter
-
-    (formatter :?> string -> 'a) prefix
+    match cache.TryGetValue(fmt.Value) with
+    | true, v -> v :?> 'a
+    | _ ->
+        let formatter = sprintf fmt
+        cache.Add(fmt.Value, box formatter)
+        formatter
