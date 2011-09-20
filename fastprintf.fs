@@ -1,5 +1,8 @@
 module FastPrintf
 
+// Configuration defines:
+// FASTPRINTF_COMPAT_FS20 - enables F# 2.0 compatibility (no padding for %c)
+
 open System
 open System.Collections.Generic
 open System.Globalization
@@ -260,7 +263,13 @@ let inline toStringFloat (e: FormatElement) : 'T -> string =
 let toString (e: FormatElement) (typ: Type) =
     match e.typ with
     | 'b' -> (fun x -> if x then "true" else "false") |> addPadding e |> box
-    | 'c' -> (fun (x: char) -> x.ToString()) |> box
+    | 'c' ->
+        (fun (x: char) -> x.ToString())
+    #if FASTPRINTF_COMPAT_FS20
+    #else
+        |> addPadding e
+    #endif
+        |> box
     | 'd' | 'i' | 'u' | 'x' | 'X' | 'o' ->
         if typ = typeof<int8> then toStringInteger e uint8 |> box<int8 -> string>
         else if typ = typeof<uint8> then toStringInteger e uint8 |> box<uint8 -> string>
