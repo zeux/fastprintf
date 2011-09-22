@@ -7,6 +7,7 @@ open System
 open System.Collections.Generic
 open System.Globalization
 open System.Reflection
+open System.Text
 
 [<Flags>]
 type FormatFlags =
@@ -138,12 +139,25 @@ let genericPrintOpt (o: obj) =
     | :? Enum as e -> e.ToString()
     | _ -> null
 
+[<AllowNullLiteral>]
+type IFormatContext<'Result> =
+    abstract Append: string * string -> unit
+    abstract Finish: unit -> 'Result
+
+type FormatTransformer<'Result> = IFormatContext<'Result> -> IFormatContext<'Result>
+
 type Factory =
-    static member CreateStringFormatter<'T, 'Result> (e: FormatElement) (func: 'T -> string) (next: (string -> string) -> 'Result) =
-        fun (state: string -> string) ->
+    static member CreateStringFormatter<'Result, 'T, 'Cont> (e: FormatElement) (func: 'T -> string) (next: FormatTransformer<'Result> -> 'Cont) =
+        fun (state: FormatTransformer<'Result>) ->
             fun (v: 'T) ->
-                let state' acc = String.Concat(state acc, func v, e.postfix)
+                let state' acc =
+                    let r = state acc
+                    r.Append(func v, e.postfix)
+                    r
                 next state'
+
+    static member CreateFormatterFinish<'Result> () =
+        fun (state: FormatTransformer<'Result>) -> (state null).Finish()
 
     static member CreateBoxString<'T> (e: FormatElement) =
         let basic = fun (o: 'T) -> if Object.ReferenceEquals(o, null) then "<null>" else o.ToString()
@@ -174,8 +188,11 @@ let getFunctionElements (typ: Type) =
     | [|car; cdr|] -> car, cdr
     | _ -> failwithf "Type %A is not a function type" typ
 
-let getStringFormatterFactory e func next arg res =
-    typeof<Factory>.GetMethod("CreateStringFormatter").MakeGenericMethod([|arg; res|]).Invoke(null, [|box e; box func; box next|])
+let getStringFormatterFactory e func next res arg cont =
+    typeof<Factory>.GetMethod("CreateStringFormatter").MakeGenericMethod([|res; arg; cont|]).Invoke(null, [|box e; box func; box next|])
+
+let getFormatterFinishFactory res =
+    typeof<Factory>.GetMethod("CreateFormatterFinish").MakeGenericMethod([|res|]).Invoke(null, [||])
 
 let getBoxStringFunction (e: FormatElement) (typ: Type) =
     typeof<Factory>.GetMethod("CreateBoxString").MakeGenericMethod([|typ|]).Invoke(null, [|box e|])
@@ -305,29 +322,36 @@ let toString (e: FormatElement) (typ: Type) =
     | 'A' -> getGenericStringFunction e typ
     | _ -> failwithf "Unrecognized format type %c" e.typ
 
-let rec getFormatter (els: FormatElement list) (typ: Type) =
+let rec getFormatter (els: FormatElement list) (typ: Type) (res: Type) =
     match els with
     | [] ->
-        if typ <> typeof<string> then failwithf "Residue %A" typ
-        fun (state: string -> string) -> state ""
-        |> box
+        if typ <> res then failwithf "Internal error: residue is %A, should be %A" typ res
+        getFormatterFinishFactory res
     | x :: xs ->
-        let arg, res = getFunctionElements typ 
+        let arg, cont = getFunctionElements typ 
 
         let str = toString x arg
-        let next = getFormatter xs res
+        let next = getFormatter xs cont res
 
-        getStringFormatterFactory x str next arg res
-        |> box
+        getStringFormatterFactory x str next res arg cont
 
-let sprintf (fmt: PrintfFormat<'a, _, _, string>) =
+type StringFormatContext<'Result>(prefix, finish) =
+    let mutable state = prefix
+
+    interface IFormatContext<'Result> with
+        member this.Append(a, b) = state <- String.Concat(state, a, b)
+        member this.Finish() = finish state
+
+let ksprintf (cont: string -> 'Result) (fmt: PrintfFormat<'Printer, 'State, 'Residue, 'Result>) =
     let prefix, els = parseFormatString fmt.Value
-    let formatter = getFormatter els typeof<'a>
-    (formatter :?> (string -> string) -> 'a) (fun _ -> prefix)
+    let formatter = getFormatter els typeof<'Printer> typeof<'Result>
+    (formatter :?> FormatTransformer<'Result> -> 'Printer) (fun _ -> StringFormatContext<'Result>(prefix, cont) :> IFormatContext<'Result>)
+
+let sprintf fmt = ksprintf id fmt
 
 let cache = Dictionary<string, obj>()
 
-let sprintfc (fmt: PrintfFormat<'a, _, _, string>) =
+let sprintfc (fmt: PrintfFormat<_, _, _, _>) =
     match cache.TryGetValue(fmt.Value) with
     | true, v -> v :?> 'a
     | _ ->
