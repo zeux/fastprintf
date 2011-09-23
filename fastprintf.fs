@@ -142,7 +142,7 @@ let genericPrintOpt (o: obj) =
 
 [<AllowNullLiteral>]
 type FormatContext<'Result> =
-    abstract State: obj
+    abstract Apply: (obj -> obj) -> unit
     abstract Append: string * string -> unit
     abstract Finish: unit -> 'Result
 
@@ -155,6 +155,25 @@ type FormatFactory<'Result> =
                 let state' acc =
                     let r = state acc
                     r.Append(func v, e.postfix)
+                    r
+                next state'
+
+type FormatFactoryGeneric<'State, 'Residue, 'Result> =
+    static member CreateFormatter0<'Cont> (next: FormatTransformer<'Result> -> 'Cont) =
+        fun (state: FormatTransformer<'Result>) ->
+            fun (f: 'State -> 'Residue) ->
+                let state' acc =
+                    let r = state acc
+                    r.Apply(fun s -> f (unbox s) |> box)
+                    r
+                next state'
+
+    static member CreateFormatter1<'T, 'Cont> (next: FormatTransformer<'Result> -> 'Cont) =
+        fun (state: FormatTransformer<'Result>) ->
+            fun (f: 'State -> 'T -> 'Residue) (v: 'T) ->
+                let state' acc =
+                    let r = state acc
+                    r.Apply(fun s -> f (unbox s) v |> box)
                     r
                 next state'
 
@@ -190,6 +209,12 @@ let getFunctionElements (typ: Type) =
 
 let getStringFormatterFactory<'Result> e func next arg cont =
     typeof<FormatFactory<'Result>>.GetMethod("CreateStringFormatter").MakeGenericMethod([|arg; cont|]).Invoke(null, [|box e; box func; box next|])
+
+let getGenericFormatter0<'State, 'Residue, 'Result> next cont =
+    typeof<FormatFactoryGeneric<'State, 'Residue, 'Result>>.GetMethod("CreateFormatter0").MakeGenericMethod([|cont|]).Invoke(null, [|box next|])
+
+let getGenericFormatter1<'State, 'Residue, 'Result> next arg cont =
+    typeof<FormatFactoryGeneric<'State, 'Residue, 'Result>>.GetMethod("CreateFormatter1").MakeGenericMethod([|arg; cont|]).Invoke(null, [|box next|])
 
 let getBoxStringFunction (e: FormatElement) (typ: Type) =
     typeof<Factory>.GetMethod("CreateBoxString").MakeGenericMethod([|typ|]).Invoke(null, [|box e|])
@@ -319,7 +344,7 @@ let toString (e: FormatElement) (typ: Type) =
     | 'A' -> getGenericStringFunction e typ
     | _ -> failwithf "Unrecognized format type %c" e.typ
 
-let rec getFormatter<'Result> (els: FormatElement list) (typ: Type) =
+let rec getFormatter<'State, 'Residue, 'Result> (els: FormatElement list) (typ: Type) =
     match els with
     | [] ->
         if typ <> typeof<'Result> then failwithf "Type error: result is %A, should be %A" typ typeof<'Result>
@@ -328,16 +353,27 @@ let rec getFormatter<'Result> (els: FormatElement list) (typ: Type) =
     | x :: xs ->
         let arg, cont = getFunctionElements typ 
 
-        let str = toString x arg
-        let next = getFormatter<'Result> xs cont
+        match x.typ with
+        | 't' ->
+            let next = getFormatter<'State, 'Residue, 'Result> xs cont
 
-        getStringFormatterFactory<'Result> x str next arg cont
+            getGenericFormatter0<'State, 'Residue, 'Result> next cont
+        | 'a' ->
+            let arg, cont = getFunctionElements cont
+            let next = getFormatter<'State, 'Residue, 'Result> xs cont
+
+            getGenericFormatter1<'State, 'Residue, 'Result> next arg cont
+        | _ ->
+            let str = toString x arg
+            let next = getFormatter<'State, 'Residue, 'Result> xs cont
+
+            getStringFormatterFactory<'Result> x str next arg cont
 
 type StringFormatContext<'Result>(prefix, finish) =
     let mutable state = prefix
 
     interface FormatContext<'Result> with
-        member this.State = box ()
+        member this.Apply f = state <- String.Concat(state, f null :?> string)
         member this.Append(a, b) = state <- String.Concat(state, a, b)
         member this.Finish() = finish state
 
@@ -345,7 +381,7 @@ type TextWriterFormatContext<'Result>(writer: TextWriter, prefix: string, finish
     do writer.Write(prefix)
 
     interface FormatContext<'Result> with
-        member this.State = box writer
+        member this.Apply f = f (box writer) |> ignore
         member this.Append(a, b) = writer.Write(a); writer.Write(b)
         member this.Finish() = finish ()
 
@@ -353,24 +389,26 @@ type StringBuilderFormatContext<'Result>(builder: StringBuilder, prefix: string,
     do builder.Append(prefix) |> ignore
 
     interface FormatContext<'Result> with
-        member this.State = box builder
+        member this.Apply f = f (box builder) |> ignore
         member this.Append(a, b) = builder.Append(a).Append(b) |> ignore
         member this.Finish() = finish ()
 
-let ksprintf (cont: string -> 'Result) (fmt: PrintfFormat<'Printer, unit, string, 'Result>) =
+let gprintf (fmt: PrintfFormat<'Printer, 'State, 'Residue, 'Result>) =
     let prefix, els = parseFormatString fmt.Value
-    let formatter = getFormatter<'Result> els typeof<'Printer>
-    (formatter :?> FormatTransformer<'Result> -> 'Printer) (fun _ -> StringFormatContext<'Result>(prefix, cont) :> FormatContext<'Result>)
+    let formatter = getFormatter<'State, 'Residue, 'Result> els typeof<'Printer>
+    prefix, (formatter :?> FormatTransformer<'Result> -> 'Printer)
+
+let ksprintf (cont: string -> 'Result) (fmt: PrintfFormat<'Printer, unit, string, 'Result>) =
+    let prefix, formatter = gprintf fmt
+    formatter (fun _ -> StringFormatContext<'Result>(prefix, cont) :> FormatContext<'Result>)
 
 let kfprintf (cont: unit -> 'Result) (writer: TextWriter) (fmt: PrintfFormat<'Printer, TextWriter, unit, 'Result>) =
-    let prefix, els = parseFormatString fmt.Value
-    let formatter = getFormatter<'Result> els typeof<'Printer>
-    (formatter :?> FormatTransformer<'Result> -> 'Printer) (fun _ -> TextWriterFormatContext<'Result>(writer, prefix, cont) :> FormatContext<'Result>)
+    let prefix, formatter = gprintf fmt
+    formatter (fun _ -> TextWriterFormatContext<'Result>(writer, prefix, cont) :> FormatContext<'Result>)
 
 let kbprintf (cont: unit -> 'Result) (builder: StringBuilder) (fmt: PrintfFormat<'Printer, StringBuilder, unit, 'Result>) =
-    let prefix, els = parseFormatString fmt.Value
-    let formatter = getFormatter<'Result> els typeof<'Printer>
-    (formatter :?> FormatTransformer<'Result> -> 'Printer) (fun _ -> StringBuilderFormatContext<'Result>(builder, prefix, cont) :> FormatContext<'Result>)
+    let prefix, formatter = gprintf fmt
+    formatter (fun _ -> StringBuilderFormatContext<'Result>(builder, prefix, cont) :> FormatContext<'Result>)
 
 let kprintf cont fmt = ksprintf cont fmt
 
