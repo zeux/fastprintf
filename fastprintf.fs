@@ -148,7 +148,7 @@ let genericPrintOpt (o: obj) =
 
 [<AllowNullLiteral>]
 type FormatContext<'Result> =
-    abstract Apply: (obj -> obj) -> unit
+    abstract Apply: (obj -> obj) * FormatElement -> unit
     abstract Append: string * FormatElement -> unit
     abstract Finish: unit -> 'Result
 
@@ -210,21 +210,21 @@ type FormatFactoryString<'Result> =
                 s.Finish()
 
 type FormatFactoryGeneric<'State, 'Residue, 'Result> =
-    static member Create0<'Cont> (next: FormatTransformer<'Result> -> 'Cont) =
+    static member Create0<'Cont> (e: FormatElement) (next: FormatTransformer<'Result> -> 'Cont) =
         fun (state: FormatTransformer<'Result>) ->
             fun (f: 'State -> 'Residue) ->
                 let state' acc =
                     let r = state acc
-                    r.Apply(fun s -> f (unbox s) |> box)
+                    r.Apply((fun s -> f (unbox s) |> box), e)
                     r
                 next state'
 
-    static member Create1<'T, 'Cont> (next: FormatTransformer<'Result> -> 'Cont) =
+    static member Create1<'T, 'Cont> (e: FormatElement) (next: FormatTransformer<'Result> -> 'Cont) =
         fun (state: FormatTransformer<'Result>) ->
             fun (f: 'State -> 'T -> 'Residue) (v: 'T) ->
                 let state' acc =
                     let r = state acc
-                    r.Apply(fun s -> f (unbox s) v |> box)
+                    r.Apply((fun s -> f (unbox s) v |> box), e)
                     r
                 next state'
 
@@ -255,11 +255,11 @@ let getStringFormatterOptN<'Result> n types args =
     assert (n >= 1 && n <= 5)
     typeof<FormatFactoryString<'Result>>.GetMethod("Opt" + n.ToString()).MakeGenericMethod(types).Invoke(null, args)
 
-let getGenericFormatter0<'State, 'Residue, 'Result> next cont =
-    typeof<FormatFactoryGeneric<'State, 'Residue, 'Result>>.GetMethod("Create0").MakeGenericMethod([|cont|]).Invoke(null, [|box next|])
+let getGenericFormatter0<'State, 'Residue, 'Result> e next cont =
+    typeof<FormatFactoryGeneric<'State, 'Residue, 'Result>>.GetMethod("Create0").MakeGenericMethod([|cont|]).Invoke(null, [|box e; box next|])
 
-let getGenericFormatter1<'State, 'Residue, 'Result> next arg cont =
-    typeof<FormatFactoryGeneric<'State, 'Residue, 'Result>>.GetMethod("Create1").MakeGenericMethod([|arg; cont|]).Invoke(null, [|box next|])
+let getGenericFormatter1<'State, 'Residue, 'Result> e next arg cont =
+    typeof<FormatFactoryGeneric<'State, 'Residue, 'Result>>.GetMethod("Create1").MakeGenericMethod([|arg; cont|]).Invoke(null, [|box e; box next|])
 
 let getBoxStringFunction (e: FormatElement) (typ: Type) =
     typeof<Factory>.GetMethod("CreateBoxString").MakeGenericMethod([|typ|]).Invoke(null, [|box e|])
@@ -415,12 +415,12 @@ let rec getFormatter<'State, 'Residue, 'Result> (els: FormatElement list) (typ: 
         | 't' ->
             let next = getFormatter<'State, 'Residue, 'Result> xs cont
 
-            getGenericFormatter0<'State, 'Residue, 'Result> next cont
+            getGenericFormatter0<'State, 'Residue, 'Result> x next cont
         | 'a' ->
             let arg, cont = getFunctionElements cont
             let next = getFormatter<'State, 'Residue, 'Result> xs cont
 
-            getGenericFormatter1<'State, 'Residue, 'Result> next arg cont
+            getGenericFormatter1<'State, 'Residue, 'Result> x next arg cont
         | _ ->
             let str = toString x arg
             let next = getFormatter<'State, 'Residue, 'Result> xs cont
@@ -431,7 +431,7 @@ type StringFormatContext<'Result>(prefix, finish) =
     let mutable state = prefix
 
     interface FormatContext<'Result> with
-        member this.Apply f = state <- String.Concat(state, f null :?> string)
+        member this.Apply(f, e) = state <- String.Concat(state, f null :?> string, e.postfix)
         member this.Append(s, e) = state <- String.Concat(state, s, e.postfix)
         member this.Finish() = finish state
 
@@ -439,7 +439,7 @@ type TextWriterFormatContext<'Result>(writer: TextWriter, prefix: string, finish
     do writer.Write(prefix)
 
     interface FormatContext<'Result> with
-        member this.Apply f = f (box writer) |> ignore
+        member this.Apply(f, e) = f (box writer) |> ignore; writer.Write(e.postfix)
         member this.Append(s, e) = writer.Write(s); writer.Write(e.postfix)
         member this.Finish() = finish ()
 
@@ -447,7 +447,7 @@ type StringBuilderFormatContext<'Result>(builder: StringBuilder, prefix: string,
     do builder.Append(prefix) |> ignore
 
     interface FormatContext<'Result> with
-        member this.Apply f = f (box builder) |> ignore
+        member this.Apply(f, e) = f (box builder) |> ignore; builder.Append(e.postfix) |> ignore
         member this.Append(s, e) = builder.Append(s).Append(e.postfix) |> ignore
         member this.Finish() = finish ()
 
