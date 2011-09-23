@@ -1,14 +1,20 @@
 module FastPrintf
 
 // Configuration defines:
-// FASTPRINTF_COMPAT_FS20 - enables F# 2.0 compatibility (no padding for %c)
+// FASTPRINTF_COMPAT_FS2 - enables F# 2.0 compatibility (no padding for %c)
+// FASTPRINTF_COMPAT_FX3 - enables .NET 3.x compatibility (no ConcurrentDictionary)
 
 open System
-open System.Collections.Generic
 open System.Globalization
 open System.Reflection
 open System.Text
 open System.IO
+
+#if FASTPRINTF_COMPAT_FX3
+open System.Collections.Generic
+#else
+open System.Collections.Concurrent
+#endif
 
 [<Flags>]
 type FormatFlags =
@@ -445,16 +451,27 @@ type StringBuilderFormatContext<'Result>(builder: StringBuilder, prefix: string,
         member this.Append(a, b) = builder.Append(a).Append(b) |> ignore
         member this.Finish() = finish ()
 
+#if FASTPRINTF_COMPAT_FX3
 type Cache<'K, 'V when 'K : equality>(generator) =
     let data = Dictionary<'K, 'V>()
-
-    member this.Item key =
+    let getter _ =
         let mutable value = Unchecked.defaultof<'V>
         if data.TryGetValue(key, &value) then value
         else
             let value = generator key
             data.Add(key, value)
             value
+
+    member this.Item key =
+        lock data getter
+#else
+type Cache<'K, 'V when 'K : equality>(generator) =
+    let data = ConcurrentDictionary<'K, 'V>()
+    let creator = Func<'K, 'V>(generator)
+
+    member this.Item key =
+        data.GetOrAdd(key, creator)
+#endif
 
 type PrintfCache<'Printer, 'State, 'Residue, 'Result>() =
     static let cache = Cache<string, _>(fun fmt ->
