@@ -148,8 +148,8 @@ type FormatContext<'Result> =
 
 type FormatTransformer<'Result> = FormatContext<'Result> -> FormatContext<'Result>
 
-type FormatFactory<'Result> =
-    static member CreateStringFormatter<'T, 'Cont> (e: FormatElement) (func: 'T -> string) (next: FormatTransformer<'Result> -> 'Cont) =
+type FormatFactoryString<'Result> =
+    static member Next<'T, 'Cont> (e: FormatElement) (func: 'T -> string) (next: FormatTransformer<'Result> -> 'Cont) =
         fun (state: FormatTransformer<'Result>) ->
             fun (v: 'T) ->
                 let state' acc =
@@ -158,8 +158,53 @@ type FormatFactory<'Result> =
                     r
                 next state'
 
+    static member Opt1<'A0> (e0: FormatElement) (func0: 'A0 -> string) =
+        fun (state: FormatTransformer<'Result>) ->
+            fun (a0: 'A0) ->
+                let s = state null
+                s.Append(func0 a0, e0.postfix)
+                s.Finish()
+
+    static member Opt2<'A0, 'A1> (e0: FormatElement) (func0: 'A0 -> string) (e1: FormatElement) (func1: 'A1 -> string) =
+        fun (state: FormatTransformer<'Result>) ->
+            fun (a0: 'A0) (a1: 'A1) ->
+                let s = state null
+                s.Append(func0 a0, e0.postfix)
+                s.Append(func1 a1, e1.postfix)
+                s.Finish()
+
+    static member Opt3<'A0, 'A1, 'A2> (e0: FormatElement) (func0: 'A0 -> string) (e1: FormatElement) (func1: 'A1 -> string) (e2: FormatElement) (func2: 'A2 -> string) =
+        fun (state: FormatTransformer<'Result>) ->
+            fun (a0: 'A0) (a1: 'A1) (a2: 'A2) ->
+                let s = state null
+                s.Append(func0 a0, e0.postfix)
+                s.Append(func1 a1, e1.postfix)
+                s.Append(func2 a2, e2.postfix)
+                s.Finish()
+
+    static member Opt4<'A0, 'A1, 'A2, 'A3> (e0: FormatElement) (func0: 'A0 -> string) (e1: FormatElement) (func1: 'A1 -> string) (e2: FormatElement) (func2: 'A2 -> string) (e3: FormatElement) (func3: 'A3 -> string) =
+        fun (state: FormatTransformer<'Result>) ->
+            fun (a0: 'A0) (a1: 'A1) (a2: 'A2) (a3: 'A3) ->
+                let s = state null
+                s.Append(func0 a0, e0.postfix)
+                s.Append(func1 a1, e1.postfix)
+                s.Append(func2 a2, e2.postfix)
+                s.Append(func3 a3, e3.postfix)
+                s.Finish()
+
+    static member Opt5<'A0, 'A1, 'A2, 'A3, 'A4> (e0: FormatElement) (func0: 'A0 -> string) (e1: FormatElement) (func1: 'A1 -> string) (e2: FormatElement) (func2: 'A2 -> string) (e3: FormatElement) (func3: 'A3 -> string) (e4: FormatElement) (func4: 'A4 -> string) =
+        fun (state: FormatTransformer<'Result>) ->
+            fun (a0: 'A0) (a1: 'A1) (a2: 'A2) (a3: 'A3) (a4: 'A4) ->
+                let s = state null
+                s.Append(func0 a0, e0.postfix)
+                s.Append(func1 a1, e1.postfix)
+                s.Append(func2 a2, e2.postfix)
+                s.Append(func3 a3, e3.postfix)
+                s.Append(func4 a4, e4.postfix)
+                s.Finish()
+
 type FormatFactoryGeneric<'State, 'Residue, 'Result> =
-    static member CreateFormatter0<'Cont> (next: FormatTransformer<'Result> -> 'Cont) =
+    static member Create0<'Cont> (next: FormatTransformer<'Result> -> 'Cont) =
         fun (state: FormatTransformer<'Result>) ->
             fun (f: 'State -> 'Residue) ->
                 let state' acc =
@@ -168,7 +213,7 @@ type FormatFactoryGeneric<'State, 'Residue, 'Result> =
                     r
                 next state'
 
-    static member CreateFormatter1<'T, 'Cont> (next: FormatTransformer<'Result> -> 'Cont) =
+    static member Create1<'T, 'Cont> (next: FormatTransformer<'Result> -> 'Cont) =
         fun (state: FormatTransformer<'Result>) ->
             fun (f: 'State -> 'T -> 'Residue) (v: 'T) ->
                 let state' acc =
@@ -207,14 +252,29 @@ let getFunctionElements (typ: Type) =
     | [|car; cdr|] -> car, cdr
     | _ -> failwithf "Type %A is not a function type" typ
 
-let getStringFormatterFactory<'Result> e func next arg cont =
-    typeof<FormatFactory<'Result>>.GetMethod("CreateStringFormatter").MakeGenericMethod([|arg; cont|]).Invoke(null, [|box e; box func; box next|])
+let getStringFormatterNext<'Result> e func next arg cont =
+    typeof<FormatFactoryString<'Result>>.GetMethod("Next").MakeGenericMethod([|arg; cont|]).Invoke(null, [|box e; box func; box next|])
+
+let getStringFormatterOpt1<'Result> e0 f0 a0 =
+    typeof<FormatFactoryString<'Result>>.GetMethod("Opt1").MakeGenericMethod([|a0|]).Invoke(null, [|box e0; box f0|])
+
+let getStringFormatterOpt2<'Result> e0 f0 a0 e1 f1 a1 =
+    typeof<FormatFactoryString<'Result>>.GetMethod("Opt2").MakeGenericMethod([|a0; a1|]).Invoke(null, [|box e0; box f0; box e1; box f1|])
+
+let getStringFormatterOpt3<'Result> e0 f0 a0 e1 f1 a1 e2 f2 a2 =
+    typeof<FormatFactoryString<'Result>>.GetMethod("Opt3").MakeGenericMethod([|a0; a1; a2|]).Invoke(null, [|box e0; box f0; box e1; box f1; box e2; box f2|])
+
+let getStringFormatterOpt4<'Result> e0 f0 a0 e1 f1 a1 e2 f2 a2 e3 f3 a3 =
+    typeof<FormatFactoryString<'Result>>.GetMethod("Opt4").MakeGenericMethod([|a0; a1; a2; a3|]).Invoke(null, [|box e0; box f0; box e1; box f1; box e2; box f2; box e3; box f3|])
+
+let getStringFormatterOpt5<'Result> e0 f0 a0 e1 f1 a1 e2 f2 a2 e3 f3 a3 e4 f4 a4 =
+    typeof<FormatFactoryString<'Result>>.GetMethod("Opt5").MakeGenericMethod([|a0; a1; a2; a3; a4|]).Invoke(null, [|box e0; box f0; box e1; box f1; box e2; box f2; box e3; box f3; box e4; box f4|])
 
 let getGenericFormatter0<'State, 'Residue, 'Result> next cont =
-    typeof<FormatFactoryGeneric<'State, 'Residue, 'Result>>.GetMethod("CreateFormatter0").MakeGenericMethod([|cont|]).Invoke(null, [|box next|])
+    typeof<FormatFactoryGeneric<'State, 'Residue, 'Result>>.GetMethod("Create0").MakeGenericMethod([|cont|]).Invoke(null, [|box next|])
 
 let getGenericFormatter1<'State, 'Residue, 'Result> next arg cont =
-    typeof<FormatFactoryGeneric<'State, 'Residue, 'Result>>.GetMethod("CreateFormatter1").MakeGenericMethod([|arg; cont|]).Invoke(null, [|box next|])
+    typeof<FormatFactoryGeneric<'State, 'Residue, 'Result>>.GetMethod("Create1").MakeGenericMethod([|arg; cont|]).Invoke(null, [|box next|])
 
 let getBoxStringFunction (e: FormatElement) (typ: Type) =
     typeof<Factory>.GetMethod("CreateBoxString").MakeGenericMethod([|typ|]).Invoke(null, [|box e|])
@@ -344,12 +404,45 @@ let toString (e: FormatElement) (typ: Type) =
     | 'A' -> getGenericStringFunction e typ
     | _ -> failwithf "Unrecognized format type %c" e.typ
 
+let isString (e: FormatElement) =
+    e.typ <> 't' && e.typ <> 'a'
+
 let rec getFormatter<'State, 'Residue, 'Result> (els: FormatElement list) (typ: Type) =
     match els with
     | [] ->
         if typ <> typeof<'Result> then failwithf "Type error: result is %A, should be %A" typ typeof<'Result>
         fun (state: FormatTransformer<'Result>) -> (state null).Finish()
         |> box
+    | [e0] when isString e0 ->
+        let a0, res = getFunctionElements typ 
+        if res <> typeof<'Result> then failwithf "Type error: result is %A, should be %A" typ typeof<'Result>
+        getStringFormatterOpt1<'Result> e0 (toString e0 a0) a0
+    | [e0; e1] when isString e0 && isString e1 ->
+        let a0, cont = getFunctionElements typ 
+        let a1, res = getFunctionElements cont
+        if res <> typeof<'Result> then failwithf "Type error: result is %A, should be %A" typ typeof<'Result>
+        getStringFormatterOpt2<'Result> e0 (toString e0 a0) a0 e1 (toString e1 a1) a1
+    | [e0; e1; e2] when isString e0 && isString e1 && isString e2 ->
+        let a0, cont = getFunctionElements typ 
+        let a1, cont = getFunctionElements cont
+        let a2, res = getFunctionElements cont
+        if res <> typeof<'Result> then failwithf "Type error: result is %A, should be %A" typ typeof<'Result>
+        getStringFormatterOpt3<'Result> e0 (toString e0 a0) a0 e1 (toString e1 a1) a1 e2 (toString e2 a2) a2
+    | [e0; e1; e2; e3] when isString e0 && isString e1 && isString e2 && isString e3 ->
+        let a0, cont = getFunctionElements typ 
+        let a1, cont = getFunctionElements cont
+        let a2, cont = getFunctionElements cont
+        let a3, res = getFunctionElements cont
+        if res <> typeof<'Result> then failwithf "Type error: result is %A, should be %A" typ typeof<'Result>
+        getStringFormatterOpt4<'Result> e0 (toString e0 a0) a0 e1 (toString e1 a1) a1 e2 (toString e2 a2) a2 e3 (toString e3 a3) a3
+    | [e0; e1; e2; e3; e4] when isString e0 && isString e1 && isString e2 && isString e3 && isString e4 ->
+        let a0, cont = getFunctionElements typ 
+        let a1, cont = getFunctionElements cont
+        let a2, cont = getFunctionElements cont
+        let a3, cont = getFunctionElements cont
+        let a4, res = getFunctionElements cont
+        if res <> typeof<'Result> then failwithf "Type error: result is %A, should be %A" typ typeof<'Result>
+        getStringFormatterOpt5<'Result> e0 (toString e0 a0) a0 e1 (toString e1 a1) a1 e2 (toString e2 a2) a2 e3 (toString e3 a3) a3 e4 (toString e4 a4) a4
     | x :: xs ->
         let arg, cont = getFunctionElements typ 
 
@@ -367,7 +460,7 @@ let rec getFormatter<'State, 'Residue, 'Result> (els: FormatElement list) (typ: 
             let str = toString x arg
             let next = getFormatter<'State, 'Residue, 'Result> xs cont
 
-            getStringFormatterFactory<'Result> x str next arg cont
+            getStringFormatterNext<'Result> x str next arg cont
 
 type StringFormatContext<'Result>(prefix, finish) =
     let mutable state = prefix
