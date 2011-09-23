@@ -427,13 +427,13 @@ let rec getFormatter<'State, 'Residue, 'Result> (els: FormatElement list) (typ: 
 
             getStringFormatterNext<'Result> x str next arg cont
 
-type StringFormatContext<'Result>(prefix, finish) =
-    let mutable state = prefix
+type StringFormatContext<'Result>(prefix: string, finish) =
+    let builder = StringBuilder(prefix)
 
     interface FormatContext<'Result> with
-        member this.Apply(f, e) = state <- String.Concat(state, f null :?> string, e.postfix)
-        member this.Append(s, e) = state <- String.Concat(state, s, e.postfix)
-        member this.Finish() = finish state
+        member this.Apply(f, e) = builder.Append(f null :?> string).Append(e.postfix) |> ignore
+        member this.Append(s, e) = builder.Append(s).Append(e.postfix) |> ignore
+        member this.Finish() = finish (builder.ToString())
 
 type TextWriterFormatContext<'Result>(writer: TextWriter, prefix: string, finish) =
     do writer.Write(prefix)
