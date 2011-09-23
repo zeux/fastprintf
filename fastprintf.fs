@@ -404,7 +404,7 @@ let rec getFormatter<'State, 'Residue, 'Result> (els: FormatElement list) (typ: 
     | [] ->
         fun (state: FormatTransformer<'Result>) -> (state null).Finish()
         |> box
-    | _ when List.length els < 5 && List.forall (fun e -> e.typ <> 't' && e.typ <> 'a') els ->
+    | _ when List.length els <= 5 && List.forall (fun e -> e.typ <> 't' && e.typ <> 'a') els ->
         let args = unpackFunctionArguments typ |> List.toArray
         let els = els |> List.toArray
         getStringFormatterOptN<'Result> args.Length args (Array.append (els |> Array.map box) (Array.map2 toString els args))
