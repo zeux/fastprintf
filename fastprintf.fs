@@ -149,7 +149,7 @@ let genericPrintOpt (o: obj) =
 [<AllowNullLiteral>]
 type FormatContext<'Result> =
     abstract Apply: (obj -> obj) -> unit
-    abstract Append: string * string -> unit
+    abstract Append: string * FormatElement -> unit
     abstract Finish: unit -> 'Result
 
 type FormatTransformer<'Result> = FormatContext<'Result> -> FormatContext<'Result>
@@ -160,53 +160,53 @@ type FormatFactoryString<'Result> =
             fun (v: 'T) ->
                 let state' acc =
                     let r = state acc
-                    r.Append(func v, e.postfix)
+                    r.Append(func v, e)
                     r
                 next state'
 
-    static member Opt1<'A0> (e0: FormatElement) (f0: 'A0 -> string) =
+    static member Opt1<'A0> e0 f0 =
         fun (state: FormatTransformer<'Result>) ->
             fun (a0: 'A0) ->
                 let s = state null
-                s.Append(f0 a0, e0.postfix)
+                s.Append(f0 a0, e0)
                 s.Finish()
 
-    static member Opt2<'A0, 'A1> (e0: FormatElement) (e1: FormatElement) (f0: 'A0 -> string) (f1: 'A1 -> string) =
+    static member Opt2<'A0, 'A1> e0 e1 f0 f1 =
         fun (state: FormatTransformer<'Result>) ->
             fun (a0: 'A0) (a1: 'A1) ->
                 let s = state null
-                s.Append(f0 a0, e0.postfix)
-                s.Append(f1 a1, e1.postfix)
+                s.Append(f0 a0, e0)
+                s.Append(f1 a1, e1)
                 s.Finish()
 
-    static member Opt3<'A0, 'A1, 'A2> (e0: FormatElement) (e1: FormatElement) (e2: FormatElement) (f0: 'A0 -> string) (f1: 'A1 -> string) (f2: 'A2 -> string) =
+    static member Opt3<'A0, 'A1, 'A2> e0 e1 e2 f0 f1 f2 =
         fun (state: FormatTransformer<'Result>) ->
             fun (a0: 'A0) (a1: 'A1) (a2: 'A2) ->
                 let s = state null
-                s.Append(f0 a0, e0.postfix)
-                s.Append(f1 a1, e1.postfix)
-                s.Append(f2 a2, e2.postfix)
+                s.Append(f0 a0, e0)
+                s.Append(f1 a1, e1)
+                s.Append(f2 a2, e2)
                 s.Finish()
 
-    static member Opt4<'A0, 'A1, 'A2, 'A3> (e0: FormatElement) (e1: FormatElement) (e2: FormatElement) (e3: FormatElement) (f0: 'A0 -> string) (f1: 'A1 -> string) (f2: 'A2 -> string) (f3: 'A3 -> string) =
+    static member Opt4<'A0, 'A1, 'A2, 'A3> e0 e1 e2 e3 f0 f1 f2 f3 =
         fun (state: FormatTransformer<'Result>) ->
             fun (a0: 'A0) (a1: 'A1) (a2: 'A2) (a3: 'A3) ->
                 let s = state null
-                s.Append(f0 a0, e0.postfix)
-                s.Append(f1 a1, e1.postfix)
-                s.Append(f2 a2, e2.postfix)
-                s.Append(f3 a3, e3.postfix)
+                s.Append(f0 a0, e0)
+                s.Append(f1 a1, e1)
+                s.Append(f2 a2, e2)
+                s.Append(f3 a3, e3)
                 s.Finish()
 
-    static member Opt5<'A0, 'A1, 'A2, 'A3, 'A4> (e0: FormatElement) (e1: FormatElement) (e2: FormatElement) (e3: FormatElement) (e4: FormatElement) (f0: 'A0 -> string) (f1: 'A1 -> string) (f2: 'A2 -> string) (f3: 'A3 -> string) (f4: 'A4 -> string) =
+    static member Opt5<'A0, 'A1, 'A2, 'A3, 'A4> e0 e1 e2 e3 e4 f0 f1 f2 f3 f4 =
         fun (state: FormatTransformer<'Result>) ->
             fun (a0: 'A0) (a1: 'A1) (a2: 'A2) (a3: 'A3) (a4: 'A4) ->
                 let s = state null
-                s.Append(f0 a0, e0.postfix)
-                s.Append(f1 a1, e1.postfix)
-                s.Append(f2 a2, e2.postfix)
-                s.Append(f3 a3, e3.postfix)
-                s.Append(f4 a4, e4.postfix)
+                s.Append(f0 a0, e0)
+                s.Append(f1 a1, e1)
+                s.Append(f2 a2, e2)
+                s.Append(f3 a3, e3)
+                s.Append(f4 a4, e4)
                 s.Finish()
 
 type FormatFactoryGeneric<'State, 'Residue, 'Result> =
@@ -432,7 +432,7 @@ type StringFormatContext<'Result>(prefix, finish) =
 
     interface FormatContext<'Result> with
         member this.Apply f = state <- String.Concat(state, f null :?> string)
-        member this.Append(a, b) = state <- String.Concat(state, a, b)
+        member this.Append(s, e) = state <- String.Concat(state, s, e.postfix)
         member this.Finish() = finish state
 
 type TextWriterFormatContext<'Result>(writer: TextWriter, prefix: string, finish) =
@@ -440,7 +440,7 @@ type TextWriterFormatContext<'Result>(writer: TextWriter, prefix: string, finish
 
     interface FormatContext<'Result> with
         member this.Apply f = f (box writer) |> ignore
-        member this.Append(a, b) = writer.Write(a); writer.Write(b)
+        member this.Append(s, e) = writer.Write(s); writer.Write(e.postfix)
         member this.Finish() = finish ()
 
 type StringBuilderFormatContext<'Result>(builder: StringBuilder, prefix: string, finish) =
@@ -448,7 +448,7 @@ type StringBuilderFormatContext<'Result>(builder: StringBuilder, prefix: string,
 
     interface FormatContext<'Result> with
         member this.Apply f = f (box builder) |> ignore
-        member this.Append(a, b) = builder.Append(a).Append(b) |> ignore
+        member this.Append(s, e) = builder.Append(s).Append(e.postfix) |> ignore
         member this.Finish() = finish ()
 
 #if FASTPRINTF_COMPAT_FX3
