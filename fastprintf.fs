@@ -8,6 +8,7 @@ open System.Collections.Generic
 open System.Globalization
 open System.Reflection
 open System.Text
+open System.IO
 
 [<Flags>]
 type FormatFlags =
@@ -140,11 +141,12 @@ let genericPrintOpt (o: obj) =
     | _ -> null
 
 [<AllowNullLiteral>]
-type IFormatContext<'Result> =
+type FormatContext<'Result> =
+    abstract State: obj
     abstract Append: string * string -> unit
     abstract Finish: unit -> 'Result
 
-type FormatTransformer<'Result> = IFormatContext<'Result> -> IFormatContext<'Result>
+type FormatTransformer<'Result> = FormatContext<'Result> -> FormatContext<'Result>
 
 type Factory =
     static member CreateStringFormatter<'Result, 'T, 'Cont> (e: FormatElement) (func: 'T -> string) (next: FormatTransformer<'Result> -> 'Cont) =
@@ -338,16 +340,58 @@ let rec getFormatter (els: FormatElement list) (typ: Type) (res: Type) =
 type StringFormatContext<'Result>(prefix, finish) =
     let mutable state = prefix
 
-    interface IFormatContext<'Result> with
+    interface FormatContext<'Result> with
+        member this.State = box ()
         member this.Append(a, b) = state <- String.Concat(state, a, b)
         member this.Finish() = finish state
 
-let ksprintf (cont: string -> 'Result) (fmt: PrintfFormat<'Printer, 'State, 'Residue, 'Result>) =
+type TextWriterFormatContext<'Result>(writer: TextWriter, prefix: string, finish) =
+    do writer.Write(prefix)
+
+    interface FormatContext<'Result> with
+        member this.State = box writer
+        member this.Append(a, b) = writer.Write(a); writer.Write(b)
+        member this.Finish() = finish ()
+
+type StringBuilderFormatContext<'Result>(builder: StringBuilder, prefix: string, finish) =
+    do builder.Append(prefix) |> ignore
+
+    interface FormatContext<'Result> with
+        member this.State = box builder
+        member this.Append(a, b) = builder.Append(a).Append(b) |> ignore
+        member this.Finish() = finish ()
+
+let ksprintf (cont: string -> 'Result) (fmt: PrintfFormat<'Printer, unit, string, 'Result>) =
     let prefix, els = parseFormatString fmt.Value
     let formatter = getFormatter els typeof<'Printer> typeof<'Result>
-    (formatter :?> FormatTransformer<'Result> -> 'Printer) (fun _ -> StringFormatContext<'Result>(prefix, cont) :> IFormatContext<'Result>)
+    (formatter :?> FormatTransformer<'Result> -> 'Printer) (fun _ -> StringFormatContext<'Result>(prefix, cont) :> FormatContext<'Result>)
+
+let kfprintf (cont: unit -> 'Result) (writer: TextWriter) (fmt: PrintfFormat<'Printer, TextWriter, unit, 'Result>) =
+    let prefix, els = parseFormatString fmt.Value
+    let formatter = getFormatter els typeof<'Printer> typeof<'Result>
+    (formatter :?> FormatTransformer<'Result> -> 'Printer) (fun _ -> TextWriterFormatContext<'Result>(writer, prefix, cont) :> FormatContext<'Result>)
+
+let kbprintf (cont: unit -> 'Result) (builder: StringBuilder) (fmt: PrintfFormat<'Printer, StringBuilder, unit, 'Result>) =
+    let prefix, els = parseFormatString fmt.Value
+    let formatter = getFormatter els typeof<'Printer> typeof<'Result>
+    (formatter :?> FormatTransformer<'Result> -> 'Printer) (fun _ -> StringBuilderFormatContext<'Result>(builder, prefix, cont) :> FormatContext<'Result>)
+
+let kprintf cont fmt = ksprintf cont fmt
 
 let sprintf fmt = ksprintf id fmt
+
+let fprintf writer fmt = kfprintf (fun _ -> ()) writer fmt
+let fprintfn (writer: TextWriter) fmt = kfprintf (fun _ -> writer.WriteLine()) writer fmt
+
+let printf fmt = fprintf Console.Out fmt
+let printfn fmt = fprintfn Console.Out fmt
+
+let eprintf fmt = fprintf Console.Out fmt
+let eprintfn fmt = fprintfn Console.Out fmt
+
+let failwithf fmt = ksprintf failwith fmt
+
+let bprintf builder fmt = kbprintf (fun _ -> ()) builder fmt
 
 let cache = Dictionary<string, obj>()
 
