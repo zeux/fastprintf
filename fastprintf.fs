@@ -352,7 +352,7 @@ module private PrintfImpl =
         | 'b' -> (fun x -> if x then "true" else "false") |> addPadding e |> box
         | 'c' ->
             (fun (x: char) -> x.ToString())
-        #if FASTPRINTF_COMPAT_FS20
+        #if FASTPRINTF_COMPAT_FS2
         #else
             |> addPadding e
         #endif
@@ -457,16 +457,15 @@ module private PrintfImpl =
     #if FASTPRINTF_COMPAT_FX3
     type Cache<'K, 'V when 'K : equality>(generator) =
         let data = Dictionary<'K, 'V>()
-        let getter _ =
-            let mutable value = Unchecked.defaultof<'V>
-            if data.TryGetValue(key, &value) then value
-            else
-                let value = generator key
-                data.Add(key, value)
-                value
 
         member this.Item key =
-            lock data getter
+            lock data (fun _ ->
+                let mutable value = Unchecked.defaultof<'V>
+                if data.TryGetValue(key, &value) then value
+                else
+                    let value = generator key
+                    data.Add(key, value)
+                    value)
     #else
     type Cache<'K, 'V when 'K : equality>(generator) =
         let data = ConcurrentDictionary<'K, 'V>()
