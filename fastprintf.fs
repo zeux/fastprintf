@@ -210,7 +210,7 @@ type FormatFactoryString<'Result> =
                 s.Finish()
 
 type FormatFactoryGeneric<'State, 'Residue, 'Result> =
-    static member Create0<'Cont> (e: FormatElement) (next: FormatTransformer<'Result> -> 'Cont) =
+    static member CreateT<'Cont> (e: FormatElement) (next: FormatTransformer<'Result> -> 'Cont) =
         fun (state: FormatTransformer<'Result>) ->
             fun (f: 'State -> 'Residue) ->
                 let state' acc =
@@ -219,7 +219,7 @@ type FormatFactoryGeneric<'State, 'Residue, 'Result> =
                     r
                 next state'
 
-    static member Create1<'T, 'Cont> (e: FormatElement) (next: FormatTransformer<'Result> -> 'Cont) =
+    static member CreateA<'T, 'Cont> (e: FormatElement) (next: FormatTransformer<'Result> -> 'Cont) =
         fun (state: FormatTransformer<'Result>) ->
             fun (f: 'State -> 'T -> 'Residue) (v: 'T) ->
                 let state' acc =
@@ -255,11 +255,11 @@ let getStringFormatterOptN<'Result> n types args =
     assert (n >= 1 && n <= 5)
     typeof<FormatFactoryString<'Result>>.GetMethod("Opt" + n.ToString()).MakeGenericMethod(types).Invoke(null, args)
 
-let getGenericFormatter0<'State, 'Residue, 'Result> e next cont =
-    typeof<FormatFactoryGeneric<'State, 'Residue, 'Result>>.GetMethod("Create0").MakeGenericMethod([|cont|]).Invoke(null, [|box e; box next|])
+let getGenericFormatterT<'State, 'Residue, 'Result> e next cont =
+    typeof<FormatFactoryGeneric<'State, 'Residue, 'Result>>.GetMethod("CreateT").MakeGenericMethod([|cont|]).Invoke(null, [|box e; box next|])
 
-let getGenericFormatter1<'State, 'Residue, 'Result> e next arg cont =
-    typeof<FormatFactoryGeneric<'State, 'Residue, 'Result>>.GetMethod("Create1").MakeGenericMethod([|arg; cont|]).Invoke(null, [|box e; box next|])
+let getGenericFormatterA<'State, 'Residue, 'Result> e next arg cont =
+    typeof<FormatFactoryGeneric<'State, 'Residue, 'Result>>.GetMethod("CreateA").MakeGenericMethod([|arg; cont|]).Invoke(null, [|box e; box next|])
 
 let getBoxStringFunction (e: FormatElement) (typ: Type) =
     typeof<Factory>.GetMethod("CreateBoxString").MakeGenericMethod([|typ|]).Invoke(null, [|box e|])
@@ -415,12 +415,12 @@ let rec getFormatter<'State, 'Residue, 'Result> (els: FormatElement list) (typ: 
         | 't' ->
             let next = getFormatter<'State, 'Residue, 'Result> xs cont
 
-            getGenericFormatter0<'State, 'Residue, 'Result> x next cont
+            getGenericFormatterT<'State, 'Residue, 'Result> x next cont
         | 'a' ->
             let arg, cont = getFunctionElements cont
             let next = getFormatter<'State, 'Residue, 'Result> xs cont
 
-            getGenericFormatter1<'State, 'Residue, 'Result> x next arg cont
+            getGenericFormatterA<'State, 'Residue, 'Result> x next arg cont
         | _ ->
             let str = toString x arg
             let next = getFormatter<'State, 'Residue, 'Result> xs cont
