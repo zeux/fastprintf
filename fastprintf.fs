@@ -393,10 +393,27 @@ type StringBuilderFormatContext<'Result>(builder: StringBuilder, prefix: string,
         member this.Append(a, b) = builder.Append(a).Append(b) |> ignore
         member this.Finish() = finish ()
 
+type Cache<'K, 'V when 'K : equality>(generator) =
+    let data = Dictionary<'K, 'V>()
+
+    member this.Item key =
+        let mutable value = Unchecked.defaultof<'V>
+        if data.TryGetValue(key, &value) then value
+        else
+            let value = generator key
+            data.Add(key, value)
+            value
+
+type PrintfCache<'Printer, 'State, 'Residue, 'Result>() =
+    static let cache = Cache<string, _>(fun fmt ->
+        let prefix, els = parseFormatString fmt
+        let formatter = getFormatter<'State, 'Residue, 'Result> els typeof<'Printer>
+        prefix, (formatter :?> FormatTransformer<'Result> -> 'Printer))
+
+    static member Item fmt = cache.Item fmt
+
 let gprintf (fmt: PrintfFormat<'Printer, 'State, 'Residue, 'Result>) =
-    let prefix, els = parseFormatString fmt.Value
-    let formatter = getFormatter<'State, 'Residue, 'Result> els typeof<'Printer>
-    prefix, (formatter :?> FormatTransformer<'Result> -> 'Printer)
+    PrintfCache<'Printer, 'State, 'Residue, 'Result>.Item fmt.Value
 
 let ksprintf (cont: string -> 'Result) (fmt: PrintfFormat<'Printer, unit, string, 'Result>) =
     let prefix, formatter = gprintf fmt
@@ -426,13 +443,3 @@ let eprintfn fmt = fprintfn Console.Out fmt
 let failwithf fmt = ksprintf failwith fmt
 
 let bprintf builder fmt = kbprintf (fun _ -> ()) builder fmt
-
-let cache = Dictionary<string, obj>()
-
-let sprintfc (fmt: PrintfFormat<_, _, _, _>) =
-    match cache.TryGetValue(fmt.Value) with
-    | true, v -> v :?> 'a
-    | _ ->
-        let formatter = sprintf fmt
-        cache.Add(fmt.Value, box formatter)
-        formatter
