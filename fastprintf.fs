@@ -500,12 +500,14 @@ module private PrintfImpl =
 
         static member Item fmt = cache.Item fmt
 
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-module Printf =
-    open PrintfImpl
-
     let gprintf (fmt: #Format<'Printer, 'State, 'Residue, 'Result>) =
         PrintfCache<'Printer, 'State, 'Residue, 'Result>.Item fmt.Value
+
+    let idString: string -> string = id
+    let idUnit : unit -> unit = id
+
+module Printf =
+    open PrintfImpl
 
     let kbprintf (cont: unit -> 'Result) (builder: StringBuilder) (fmt: #BuilderFormat<'Printer, 'Result>): 'Printer =
         let prefix, count, formatter = gprintf fmt
@@ -522,9 +524,9 @@ module Printf =
         else
             formatter (fun _ -> StringJoinFormatContext<'Result>(prefix, count, cont) :> FormatContext<'Result>)
 
-    let bprintf (builder: StringBuilder) (fmt: #BuilderFormat<'Printer>): 'Printer = kbprintf (fun _ -> ()) builder fmt
+    let bprintf (builder: StringBuilder) (fmt: #BuilderFormat<'Printer>): 'Printer = kbprintf idUnit builder fmt
 
-    let fprintf (writer: TextWriter) (fmt: #TextWriterFormat<'Printer>): 'Printer = kfprintf (fun _ -> ()) writer fmt
+    let fprintf (writer: TextWriter) (fmt: #TextWriterFormat<'Printer>): 'Printer = kfprintf idUnit writer fmt
     let fprintfn (writer: TextWriter) (fmt: #TextWriterFormat<'Printer>): 'Printer = kfprintf (fun _ -> writer.WriteLine()) writer fmt
 
     let printf (fmt: #TextWriterFormat<'Printer>): 'Printer = fprintf Console.Out fmt
@@ -533,7 +535,7 @@ module Printf =
     let eprintf (fmt: #TextWriterFormat<'Printer>): 'Printer = fprintf Console.Error fmt
     let eprintfn (fmt: #TextWriterFormat<'Printer>): 'Printer = fprintfn Console.Error fmt
 
-    let sprintf (fmt: #StringFormat<'Printer>): 'Printer = ksprintf id fmt
+    let sprintf (fmt: #StringFormat<'Printer>): 'Printer = ksprintf idString fmt
 
     let kprintf (cont: string -> 'Result) (fmt: #StringFormat<'Printer, 'Result>): 'Printer = ksprintf cont fmt
 
