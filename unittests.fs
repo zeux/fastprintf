@@ -376,6 +376,13 @@ let testGenericTString () =
     tf1 "%t," (fun _ -> "boo")
     tf1 "%t" (fun _ -> "boo")
 
+// generic formatting test for string null values
+let testGenericTStringNull () =
+    tf1 "%t" (fun _ -> null)
+    tf2 "%a" (fun _ _ -> null) null
+    tf3 "%t %a" (fun _ -> null) (fun _ _ -> null) null
+    tf5 "%a %t %a" (fun _ _ -> null) null (fun _ -> null) (fun _ _ -> null) null
+
 // generic formatting currying test: the functions should only be called once the final argument is passed, the calls should be in order
 let testGenericTCurry () =
     let count = ref 0
@@ -395,6 +402,28 @@ let testGenericTCurry () =
 
     !count =! 2
     ffff =! "[! ?]"
+
+// test for various argument count (w/out %a/%t)
+let testArgumentCountBasic () =
+    tf0 "a"
+    tf1 "a%sb" "?"
+    tf2 "a%sb%dc" "?" 1
+    tf3 "a%sb%dc%cd" "?" 1 'x'
+    tf4 "a%sb%dc%cd%be" "?" 1 'x' false
+    tf5 "a%sb%dc%cd%be%Of" "?" 1 'x' false (ref 0)
+    tf6 "a%sb%dc%cd%be%Of%Ag" "?" 1 'x' false (ref 0) (Some 4)
+    tf7 "a%sb%dc%cd%be%Of%Ag%fh" "?" 1 'x' false (ref 0) (Some 4) 0.4
+    tf8 "a%sb%dc%cd%be%Of%Ag%fh%xi" "?" 1 'x' false (ref 0) (Some 4) 0.4 255uy
+    tf9 "a%sb%dc%cd%be%Of%Ag%fh%xi%Mj" "?" 1 'x' false (ref 0) (Some 4) 0.4 255uy 1.000m
+
+// test for various argument count (with %a/%t)
+let testArgumentCountGenericT () =
+    tf1 "a%tb" (fun _ -> "x")
+    tf2 "a%ab" (fun _ x -> x) "y"
+    tf3 "a%ab%tc" (fun _ x -> x) "y" (fun _ -> "z")
+    tf4 "a%ab%ac" (fun _ x -> x) "y" (fun _ x -> x + "z") "v"
+    tf5 "a%ab%tx%ac" (fun _ x -> x) "y" (fun _ -> "!") (fun _ x -> x + "z") "v"
+    tf5 "%t %t %t %t %t" (fun _ -> "a") (fun _ -> "b") (fun _ -> "c") (fun _ -> "d") (fun _ -> "e")
 
 // all tests
 let testAll () =
@@ -423,7 +452,10 @@ let testAll () =
     testGenericAToStringExn ()
     testCurry ()
     testGenericTString ()
+    testGenericTStringNull ()
     testGenericTCurry ()
+    testArgumentCountBasic ()
+    testArgumentCountGenericT ()
 
 // make a mess out of the current culture to make sure the culture-related behavior is the same as that of core printf
 let numberFormat = NumberFormatInfo()
