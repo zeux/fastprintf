@@ -15,6 +15,7 @@ open Microsoft.FSharp.Core.Printf
 open System.Collections.Generic
 #else
 open System.Collections.Concurrent
+open System.Linq.Expressions
 #endif
 
 module private PrintfImpl =
@@ -246,9 +247,9 @@ module private PrintfImpl =
                 fun (o: 'T) ->
                     let s = genericPrintOpt (box o)
                     if s <> null then s
-                    else Printf.sprintf (Printf.StringFormat<'T -> string>(fmt)) o
+                    else sprintf (StringFormat<'T -> string>(fmt)) o
             else
-                fun (o: 'T) -> Printf.sprintf (Printf.StringFormat<'T -> string>(fmt)) o
+                fun (o: 'T) -> sprintf (StringFormat<'T -> string>(fmt)) o
 
     let bindingFlags = BindingFlags.Static ||| BindingFlags.NonPublic
 
@@ -439,21 +440,37 @@ module private PrintfImpl =
             member this.Append(s, e) = state <- String.Concat(state, s, e.postfix)
             member this.Finish() = finish state
 
+#if FASTPRINTF_COMPAT_FX3
+    let inline stringConcatArray data length = String.Concat(data)
+#else
+    let stringConcatArrayDelegate =
+        let data = Expression.Parameter(typeof<string array>)
+        let length = Expression.Parameter(typeof<int>)
+        Expression.Lambda<Func<string array, int, string>>(
+            Expression.Call(typeof<string>.GetMethod("ConcatArray", bindingFlags), data, length), [| data; length |]
+            ).Compile()
+
+    let inline stringConcatArray data length = stringConcatArrayDelegate.Invoke(data, length)
+#endif
+
     type StringJoinFormatContext<'Result>(prefix: string, count, finish) =
         let state = Array.zeroCreate (count * 2 + 1)
         do state.[0] <- prefix
 
         let mutable index = 1
+        let mutable length = prefix.Length
 
         interface FormatContext<'Result> with
             member this.Apply(f, e) = (this :> FormatContext<'Result>).Append(f null :?> string, e)
             member this.Append(s, e) =
-                state.[index] <- s
+                let ss = if s = null then "" else s
+                state.[index] <- ss
                 state.[index + 1] <- e.postfix
                 index <- index + 2
+                length <- length + ss.Length + e.postfix.Length
             member this.Finish() =
                 assert (index = state.Length)
-                finish (String.Concat(state))
+                finish (stringConcatArray state length)
 
     type TextWriterFormatContext<'Result>(writer: TextWriter, prefix: string, finish) =
         do writer.Write(prefix)
@@ -471,7 +488,7 @@ module private PrintfImpl =
             member this.Append(s, e) = builder.Append(s).Append(e.postfix) |> ignore
             member this.Finish() = finish ()
 
-    #if FASTPRINTF_COMPAT_FX3
+#if FASTPRINTF_COMPAT_FX3
     type Cache<'K, 'V when 'K : equality>(generator) =
         let data = Dictionary<'K, 'V>()
 
@@ -483,14 +500,14 @@ module private PrintfImpl =
                     let value = generator key
                     data.Add(key, value)
                     value)
-    #else
+#else
     type Cache<'K, 'V when 'K : equality>(generator) =
         let data = ConcurrentDictionary<'K, 'V>()
         let creator = Func<'K, 'V>(generator)
 
         member this.Item key =
             data.GetOrAdd(key, creator)
-    #endif
+#endif
 
     type PrintfCache<'Printer, 'State, 'Residue, 'Result>() =
         static let cache = Cache<string, _>(fun fmt ->
@@ -547,9 +564,9 @@ let printfn (fmt: #TextWriterFormat<'Printer>): 'Printer = Printf.printfn fmt
 let eprintf (fmt: #TextWriterFormat<'Printer>): 'Printer = Printf.eprintf fmt
 let eprintfn (fmt: #TextWriterFormat<'Printer>): 'Printer = Printf.eprintfn fmt
 
-let sprintf (fmt: #Printf.StringFormat<'Printer>): 'Printer = Printf.sprintf fmt
+let sprintf (fmt: #StringFormat<'Printer>): 'Printer = Printf.sprintf fmt
 
-let failwithf (fmt: #Printf.StringFormat<'Printer, 'Result>): 'Printer = Printf.failwithf fmt
+let failwithf (fmt: #StringFormat<'Printer, 'Result>): 'Printer = Printf.failwithf fmt
 
 let fprintf (writer: TextWriter) (fmt: #TextWriterFormat<'Printer>): 'Printer = Printf.fprintf writer fmt
 let fprintfn (writer: TextWriter) (fmt: #TextWriterFormat<'Printer>): 'Printer = Printf.fprintfn writer fmt
