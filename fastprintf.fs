@@ -9,6 +9,7 @@ open System.Globalization
 open System.Reflection
 open System.Text
 open System.IO
+open Microsoft.FSharp.Core.Printf
 
 #if FASTPRINTF_COMPAT_FX3
 open System.Collections.Generic
@@ -430,13 +431,29 @@ module private PrintfImpl =
 
                 getStringFormatterNext<'Result> x str next arg cont
 
-    type StringFormatContext<'Result>(prefix: string, finish) =
-        let builder = StringBuilder(prefix)
+    type StringConcatFormatContext<'Result>(prefix: string, finish) =
+        let mutable state = prefix
 
         interface FormatContext<'Result> with
-            member this.Apply(f, e) = builder.Append(f null :?> string).Append(e.postfix) |> ignore
-            member this.Append(s, e) = builder.Append(s).Append(e.postfix) |> ignore
-            member this.Finish() = finish (builder.ToString())
+            member this.Apply(f, e) = (this :> FormatContext<'Result>).Append(f null :?> string, e)
+            member this.Append(s, e) = state <- String.Concat(state, s, e.postfix)
+            member this.Finish() = finish state
+
+    type StringJoinFormatContext<'Result>(prefix: string, count, finish) =
+        let state = Array.zeroCreate (count * 2 + 1)
+        do state.[0] <- prefix
+
+        let mutable index = 1
+
+        interface FormatContext<'Result> with
+            member this.Apply(f, e) = (this :> FormatContext<'Result>).Append(f null :?> string, e)
+            member this.Append(s, e) =
+                state.[index] <- s
+                state.[index + 1] <- e.postfix
+                index <- index + 2
+            member this.Finish() =
+                assert (index = state.Length)
+                finish (String.Concat(state))
 
     type TextWriterFormatContext<'Result>(writer: TextWriter, prefix: string, finish) =
         do writer.Write(prefix)
@@ -479,91 +496,58 @@ module private PrintfImpl =
         static let cache = Cache<string, _>(fun fmt ->
             let prefix, els = parseFormatString fmt
             let formatter = getFormatter<'State, 'Residue, 'Result> els typeof<'Printer>
-            prefix, (formatter :?> FormatTransformer<'Result> -> 'Printer))
+            prefix, els.Length, (formatter :?> FormatTransformer<'Result> -> 'Printer))
 
         static member Item fmt = cache.Item fmt
-
-    type Format<'Printer, 'State, 'Residue, 'Result> = Microsoft.FSharp.Core.Format<'Printer, 'State, 'Residue, 'Result>
-
-    let gprintf (fmt: PrintfFormat<'Printer, 'State, 'Residue, 'Result>) =
-        PrintfCache<'Printer, 'State, 'Residue, 'Result>.Item fmt.Value
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Printf =
     open PrintfImpl
 
-    type BuilderFormat<'Printer, 'Result> = Format<'Printer, StringBuilder, unit, 'Result>
-    type StringFormat<'Printer, 'Result> = Format<'Printer, unit, string, 'Result>
-    type TextWriterFormat<'Printer, 'Result> = Format<'Printer, TextWriter, unit, 'Result>
-    type BuilderFormat<'Printer> = BuilderFormat<'Printer, unit>
-    type StringFormat<'Printer> = StringFormat<'Printer, string>
-    type TextWriterFormat<'Printer> = TextWriterFormat<'Printer, unit>
+    let gprintf (fmt: #Format<'Printer, 'State, 'Residue, 'Result>) =
+        PrintfCache<'Printer, 'State, 'Residue, 'Result>.Item fmt.Value
 
-    [<CompiledName("PrintFormatToStringBuilderThen")>]
-    let kbprintf (cont: unit -> 'Result) (builder: StringBuilder) (fmt: BuilderFormat<'Printer, 'Result>): 'Printer =
-        let prefix, formatter = gprintf fmt
+    let kbprintf (cont: unit -> 'Result) (builder: StringBuilder) (fmt: #BuilderFormat<'Printer, 'Result>): 'Printer =
+        let prefix, count, formatter = gprintf fmt
         formatter (fun _ -> StringBuilderFormatContext<'Result>(builder, prefix, cont) :> FormatContext<'Result>)
 
-    [<CompiledName("PrintFormatToTextWriterThen")>]
-    let kfprintf (cont: unit -> 'Result) (writer: TextWriter) (fmt: TextWriterFormat<'Printer, 'Result>): 'Printer =
-        let prefix, formatter = gprintf fmt
+    let kfprintf (cont: unit -> 'Result) (writer: TextWriter) (fmt: #TextWriterFormat<'Printer, 'Result>): 'Printer =
+        let prefix, count, formatter = gprintf fmt
         formatter (fun _ -> TextWriterFormatContext<'Result>(writer, prefix, cont) :> FormatContext<'Result>)
 
-    [<CompiledName("PrintFormatToStringThen")>]
-    let ksprintf (cont: string -> 'Result) (fmt: StringFormat<'Printer, 'Result>): 'Printer =
-        let prefix, formatter = gprintf fmt
-        formatter (fun _ -> StringFormatContext<'Result>(prefix, cont) :> FormatContext<'Result>)
+    let ksprintf (cont: string -> 'Result) (fmt: #StringFormat<'Printer, 'Result>): 'Printer =
+        let prefix, count, formatter = gprintf fmt
+        if count <= 1 then
+            formatter (fun _ -> StringConcatFormatContext<'Result>(prefix, cont) :> FormatContext<'Result>)
+        else
+            formatter (fun _ -> StringJoinFormatContext<'Result>(prefix, count, cont) :> FormatContext<'Result>)
 
-    [<CompiledName("PrintFormatToStringBuilder")>]
-    let bprintf builder fmt = kbprintf (fun _ -> ()) builder fmt
+    let bprintf (builder: StringBuilder) (fmt: #BuilderFormat<'Printer>): 'Printer = kbprintf (fun _ -> ()) builder fmt
 
-    [<CompiledName("PrintFormatToTextWriter")>]
-    let fprintf writer fmt = kfprintf (fun _ -> ()) writer fmt
+    let fprintf (writer: TextWriter) (fmt: #TextWriterFormat<'Printer>): 'Printer = kfprintf (fun _ -> ()) writer fmt
+    let fprintfn (writer: TextWriter) (fmt: #TextWriterFormat<'Printer>): 'Printer = kfprintf (fun _ -> writer.WriteLine()) writer fmt
 
-    [<CompiledName("PrintFormatLineToTextWriter")>]
-    let fprintfn (writer: TextWriter) fmt = kfprintf (fun _ -> writer.WriteLine()) writer fmt
+    let printf (fmt: #TextWriterFormat<'Printer>): 'Printer = fprintf Console.Out fmt
+    let printfn (fmt: #TextWriterFormat<'Printer>): 'Printer = fprintfn Console.Out fmt
 
-    [<CompiledName("PrintFormatToError")>]
-    let eprintf fmt = fprintf Console.Out fmt
+    let eprintf (fmt: #TextWriterFormat<'Printer>): 'Printer = fprintf Console.Error fmt
+    let eprintfn (fmt: #TextWriterFormat<'Printer>): 'Printer = fprintfn Console.Error fmt
 
-    [<CompiledName("PrintFormatLineToError")>]
-    let eprintfn fmt = fprintfn Console.Out fmt
+    let sprintf (fmt: #StringFormat<'Printer>): 'Printer = ksprintf id fmt
 
-    [<CompiledName("PrintFormat")>]
-    let printf fmt = fprintf Console.Out fmt
+    let kprintf (cont: string -> 'Result) (fmt: #StringFormat<'Printer, 'Result>): 'Printer = ksprintf cont fmt
 
-    [<CompiledName("PrintFormatLine")>]
-    let printfn fmt = fprintfn Console.Out fmt
+    let failwithf (fmt: #StringFormat<'Printer, 'Result>): 'Printer = ksprintf failwith fmt
 
-    [<CompiledName("PrintFormatToStringThen")>]
-    let sprintf fmt = ksprintf id fmt
+let printf (fmt: #TextWriterFormat<'Printer>): 'Printer = Printf.printf fmt
+let printfn (fmt: #TextWriterFormat<'Printer>): 'Printer = Printf.printfn fmt
 
-    [<CompiledName("PrintFormatThen")>]
-    let kprintf cont fmt = ksprintf cont fmt
+let eprintf (fmt: #TextWriterFormat<'Printer>): 'Printer = Printf.eprintf fmt
+let eprintfn (fmt: #TextWriterFormat<'Printer>): 'Printer = Printf.eprintfn fmt
 
-    [<CompiledName("PrintFormatToStringThenFail")>]
-    let failwithf fmt = ksprintf failwith fmt
+let sprintf (fmt: #Printf.StringFormat<'Printer>): 'Printer = Printf.sprintf fmt
 
-[<CompiledName("PrintFormatToString")>]
-let sprintf fmt = Printf.sprintf fmt
+let failwithf (fmt: #Printf.StringFormat<'Printer, 'Result>): 'Printer = Printf.failwithf fmt
 
-[<CompiledName("PrintFormatToStringThenFail")>]
-let failwithf fmt = Printf.failwithf fmt
-
-[<CompiledName("PrintFormatToTextWriter")>]
-let fprintf writer fmt = Printf.fprintf writer fmt
-
-[<CompiledName("PrintFormat")>]
-let printf fmt = Printf.printf fmt
-
-[<CompiledName("PrintFormatToError")>]
-let eprintf fmt = Printf.eprintf fmt
-
-[<CompiledName("PrintFormatLineToTextWriter")>]
-let fprintfn writer fmt = Printf.fprintfn writer fmt
-
-[<CompiledName("PrintFormatLine")>]
-let printfn fmt = Printf.printfn fmt
-
-[<CompiledName("PrintFormatLineToError")>]
-let eprintfn fmt = Printf.eprintfn fmt
+let fprintf (writer: TextWriter) (fmt: #TextWriterFormat<'Printer>): 'Printer = Printf.fprintf writer fmt
+let fprintfn (writer: TextWriter) (fmt: #TextWriterFormat<'Printer>): 'Printer = Printf.fprintfn writer fmt
