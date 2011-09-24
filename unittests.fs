@@ -352,6 +352,50 @@ let testCurry () =
     v221 W.One =! "[2 2.000000 a One]"
     v222 W.One =! "[2 2.000000 b One]"
 
+// generic formatting test for strings
+let testGenericTString () =
+    tf9 "<%d;%a,%c.%t[%s]%t=%a>" 1 (fun _ i -> string (i + 1)) 5 'x' (fun _ -> "hey!") "boo" (fun _ -> "bar") (fun _ s -> "[" + s + "]") "??"
+    tf9 "<%d;%a,%c.%t[%s]%t=%a" 1 (fun _ i -> string (i + 1)) 5 'x' (fun _ -> "hey!") "boo" (fun _ -> "bar") (fun _ s -> "[" + s + "]") "??"
+    tf7 "<%d;%a,%c.%t[%s]%t=" 1 (fun _ i -> string (i + 1)) 5 'x' (fun _ -> "hey!") "boo" (fun _ -> "bar")
+    tf7 "<%d;%a,%c.%t[%s]%t" 1 (fun _ i -> string (i + 1)) 5 'x' (fun _ -> "hey!") "boo" (fun _ -> "bar")
+    tf6 "<%d;%a,%c.%t[%s]" 1 (fun _ i -> string (i + 1)) 5 'x' (fun _ -> "hey!") "boo"
+    tf6 "<%d;%a,%c.%t[%s" 1 (fun _ i -> string (i + 1)) 5 'x' (fun _ -> "hey!") "boo"
+    tf5 "<%d;%a,%c.%t[" 1 (fun _ i -> string (i + 1)) 5 'x' (fun _ -> "hey!")
+    tf5 "<%d;%a,%c.%t" 1 (fun _ i -> string (i + 1)) 5 'x' (fun _ -> "hey!")
+    tf4 "<%d;%a,%c." 1 (fun _ i -> string (i + 1)) 5 'x'
+    tf4 "<%d;%a,%c" 1 (fun _ i -> string (i + 1)) 5 'x'
+    tf3 "<%d;%a," 1 (fun _ i -> string (i + 1)) 5
+    tf3 "<%d;%a" 1 (fun _ i -> string (i + 1)) 5
+    tf2 ";%a," (fun _ i -> string (i + 1)) 5
+    tf2 ":%a" (fun _ i -> string (i + 1)) 5
+    tf2 "%a," (fun _ i -> string (i + 1)) 5
+    tf2 "%a" (fun _ i -> string (i + 1)) 5
+    tf1 "<%d;" 1
+    tf1 ";%t," (fun _ -> "boo")
+    tf1 ":%t" (fun _ -> "boo")
+    tf1 "%t," (fun _ -> "boo")
+    tf1 "%t" (fun _ -> "boo")
+
+// generic formatting currying test: the functions should only be called once the final argument is passed, the calls should be in order
+let testGenericTCurry () =
+    let count = ref 0
+    let f = FastPrintf.sprintf "[%a %t]"
+    let ff = f (fun _ a ->
+        !count =! 0
+        count := 1
+        a)
+    let fff = ff "!"
+
+    !count =! 0
+
+    let ffff = fff (fun _ ->
+        !count =! 1
+        count := 2
+        "?")
+
+    !count =! 2
+    ffff =! "[! ?]"
+
 // all tests
 let testAll () =
     testLiteral ()
@@ -378,6 +422,8 @@ let testAll () =
     testGenericAFlags ()
     testGenericAToStringExn ()
     testCurry ()
+    testGenericTString ()
+    testGenericTCurry ()
 
 // make a mess out of the current culture to make sure the culture-related behavior is the same as that of core printf
 let numberFormat = NumberFormatInfo()
