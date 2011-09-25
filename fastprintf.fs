@@ -409,7 +409,7 @@ module private PrintfImpl =
         | [] ->
             fun (state: FormatTransformer<'Result>) -> (state null).Finish()
             |> box
-        | _ when List.length els <= 5 && List.forall (fun e -> e.typ <> 't' && e.typ <> 'a') els ->
+        | _ when els.Length <= 5 && List.forall (fun e -> e.typ <> 't' && e.typ <> 'a') els ->
             let args = unpackFunctionArguments typ |> List.toArray
             let els = els |> List.toArray
             getStringFormatterOptN<'Result> args.Length args (Array.append (els |> Array.map box) (Array.map2 toString els args))
@@ -488,6 +488,12 @@ module private PrintfImpl =
             member this.Append(s, e) = builder.Append(s).Append(e.postfix) |> ignore
             member this.Finish() = finish ()
 
+    let inline getStringFormatContext prefix count (formatter: FormatTransformer<'Result> -> 'Printer) cont =
+        if count <= 1 then
+            formatter (fun _ -> StringConcatFormatContext<'Result>(prefix, cont) :> FormatContext<'Result>)
+        else
+            formatter (fun _ -> StringJoinFormatContext<'Result>(prefix, count, cont) :> FormatContext<'Result>)
+
 #if FASTPRINTF_COMPAT_FX3
     type Cache<'K, 'V when 'K : equality>(generator) =
         let data = Dictionary<'K, 'V>()
@@ -512,8 +518,9 @@ module private PrintfImpl =
     type PrintfCache<'Printer, 'State, 'Residue, 'Result>() =
         static let cache = Cache<string, _>(fun fmt ->
             let prefix, els = parseFormatString fmt
-            let formatter = getFormatter<'State, 'Residue, 'Result> els typeof<'Printer>
-            prefix, els.Length, (formatter :?> FormatTransformer<'Result> -> 'Printer))
+            let count = els.Length
+            let formatter = getFormatter<'State, 'Residue, 'Result> els typeof<'Printer> :?> FormatTransformer<'Result> -> 'Printer
+            prefix, count, formatter)
 
         static member Item fmt = cache.Item fmt
 
@@ -522,6 +529,13 @@ module private PrintfImpl =
 
     let idString: string -> string = id
     let idUnit : unit -> unit = id
+
+    type PrintfCacheString<'Printer>() =
+        static let cache = Cache<string, _>(fun fmt ->
+            let prefix, count, formatter = PrintfCache<'Printer, unit, string, string>.Item fmt
+            getStringFormatContext prefix count formatter idString)
+
+        static member Item fmt = cache.Item fmt
 
 module Printf =
     open PrintfImpl
@@ -536,10 +550,7 @@ module Printf =
 
     let ksprintf (cont: string -> 'Result) (fmt: #StringFormat<'Printer, 'Result>): 'Printer =
         let prefix, count, formatter = gprintf fmt
-        if count <= 1 then
-            formatter (fun _ -> StringConcatFormatContext<'Result>(prefix, cont) :> FormatContext<'Result>)
-        else
-            formatter (fun _ -> StringJoinFormatContext<'Result>(prefix, count, cont) :> FormatContext<'Result>)
+        getStringFormatContext prefix count formatter cont
 
     let bprintf (builder: StringBuilder) (fmt: #BuilderFormat<'Printer>): 'Printer = kbprintf idUnit builder fmt
 
@@ -552,7 +563,8 @@ module Printf =
     let eprintf (fmt: #TextWriterFormat<'Printer>): 'Printer = fprintf Console.Error fmt
     let eprintfn (fmt: #TextWriterFormat<'Printer>): 'Printer = fprintfn Console.Error fmt
 
-    let sprintf (fmt: #StringFormat<'Printer>): 'Printer = ksprintf idString fmt
+    let sprintf (fmt: #StringFormat<'Printer>): 'Printer =
+        PrintfCacheString<'Printer>.Item fmt.Value
 
     let kprintf (cont: string -> 'Result) (fmt: #StringFormat<'Printer, 'Result>): 'Printer = ksprintf cont fmt
 
