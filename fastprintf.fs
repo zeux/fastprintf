@@ -515,6 +515,19 @@ module private PrintfImpl =
             data.GetOrAdd(key, creator)
 #endif
 
+    type LocalCache<'K, 'V when 'K: equality>() =
+        let mutable key = Unchecked.defaultof<'K>
+        let mutable value = Unchecked.defaultof<'V>
+
+        member this.Item k (cache: Cache<'K, 'V>) =
+            if Object.ReferenceEquals(key, k) then
+                value
+            else
+                let v = cache.Item k
+                key <- k
+                value <- v
+                v
+
     type PrintfCache<'Printer, 'State, 'Residue, 'Result>() =
         static let cache = Cache<string, _>(fun fmt ->
             let prefix, els = parseFormatString fmt
@@ -522,7 +535,17 @@ module private PrintfImpl =
             let formatter = getFormatter<'State, 'Residue, 'Result> els typeof<'Printer> :?> FormatTransformer<'Result> -> 'Printer
             prefix, count, formatter)
 
-        static member Item fmt = cache.Item fmt
+        [<ThreadStatic; DefaultValue>]
+        static val mutable private local: LocalCache<string, string * int * (FormatTransformer<'Result> -> 'Printer)>
+
+        static member Item fmt =
+            let lc = PrintfCache<'Printer, 'State, 'Residue, 'Result>.local
+            if Object.ReferenceEquals(lc, null) then
+                let lc = LocalCache<_, _>()
+                PrintfCache<'Printer, 'State, 'Residue, 'Result>.local <- lc
+                lc.Item fmt cache
+            else
+                lc.Item fmt cache
 
     let gprintf (fmt: #Format<'Printer, 'State, 'Residue, 'Result>) =
         PrintfCache<'Printer, 'State, 'Residue, 'Result>.Item fmt.Value
@@ -535,7 +558,17 @@ module private PrintfImpl =
             let prefix, count, formatter = PrintfCache<'Printer, unit, string, string>.Item fmt
             getStringFormatContext prefix count formatter idString)
 
-        static member Item fmt = cache.Item fmt
+        [<ThreadStatic; DefaultValue>]
+        static val mutable private local: LocalCache<string, 'Printer>
+
+        static member Item fmt =
+            let lc = PrintfCacheString<'Printer>.local
+            if Object.ReferenceEquals(lc, null) then
+                let lc = LocalCache<_, _>()
+                PrintfCacheString<'Printer>.local <- lc
+                lc.Item fmt cache
+            else
+                lc.Item fmt cache
 
 module Printf =
     open PrintfImpl
