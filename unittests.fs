@@ -3,6 +3,8 @@ module UnitTests
 open System
 open System.Globalization
 
+module CorePrintf = Microsoft.FSharp.Core.Printf
+
 let testCounter = ref 0
 
 let (=!) x y =
@@ -20,18 +22,18 @@ let t7 l r a0 a1 a2 a3 a4 a5 a6 = l a0 a1 a2 a3 a4 a5 a6 =! r a0 a1 a2 a3 a4 a5 
 let t8 l r a0 a1 a2 a3 a4 a5 a6 a7 = l a0 a1 a2 a3 a4 a5 a6 a7 =! r a0 a1 a2 a3 a4 a5 a6 a7
 let t9 l r a0 a1 a2 a3 a4 a5 a6 a7 a8 = l a0 a1 a2 a3 a4 a5 a6 a7 a8 =! r a0 a1 a2 a3 a4 a5 a6 a7 a8
 
-let tf0 (fmt: PrintfFormat<_, _, _, _>) = t0 (sprintf fmt) (FastPrintf.sprintf fmt)
-let tf1 (fmt: PrintfFormat<_, _, _, _>) = t1 (sprintf fmt) (FastPrintf.sprintf fmt)
-let tf2 (fmt: PrintfFormat<_, _, _, _>) = t2 (sprintf fmt) (FastPrintf.sprintf fmt)
-let tf3 (fmt: PrintfFormat<_, _, _, _>) = t3 (sprintf fmt) (FastPrintf.sprintf fmt)
-let tf4 (fmt: PrintfFormat<_, _, _, _>) = t4 (sprintf fmt) (FastPrintf.sprintf fmt)
-let tf5 (fmt: PrintfFormat<_, _, _, _>) = t5 (sprintf fmt) (FastPrintf.sprintf fmt)
-let tf6 (fmt: PrintfFormat<_, _, _, _>) = t6 (sprintf fmt) (FastPrintf.sprintf fmt)
-let tf7 (fmt: PrintfFormat<_, _, _, _>) = t7 (sprintf fmt) (FastPrintf.sprintf fmt)
-let tf8 (fmt: PrintfFormat<_, _, _, _>) = t8 (sprintf fmt) (FastPrintf.sprintf fmt)
-let tf9 (fmt: PrintfFormat<_, _, _, _>) = t9 (sprintf fmt) (FastPrintf.sprintf fmt)
+let tf0 (fmt: PrintfFormat<_, _, _, _>) = t0 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
+let tf1 (fmt: PrintfFormat<_, _, _, _>) = t1 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
+let tf2 (fmt: PrintfFormat<_, _, _, _>) = t2 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
+let tf3 (fmt: PrintfFormat<_, _, _, _>) = t3 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
+let tf4 (fmt: PrintfFormat<_, _, _, _>) = t4 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
+let tf5 (fmt: PrintfFormat<_, _, _, _>) = t5 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
+let tf6 (fmt: PrintfFormat<_, _, _, _>) = t6 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
+let tf7 (fmt: PrintfFormat<_, _, _, _>) = t7 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
+let tf8 (fmt: PrintfFormat<_, _, _, _>) = t8 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
+let tf9 (fmt: PrintfFormat<_, _, _, _>) = t9 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
 
-let tf6l (fmt: PrintfFormat<_, _, _, _>) l = for a in l do t6 (sprintf fmt) (FastPrintf.sprintf fmt) a a a a a a
+let tf6l (fmt: PrintfFormat<_, _, _, _>) l = for a in l do t6 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt) a a a a a a
 
 // literal strings
 let testLiteral () =

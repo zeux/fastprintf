@@ -1,11 +1,13 @@
 open System
 open System.Diagnostics
 
+module CorePrintf = Microsoft.FSharp.Core.Printf
+
 let time1 N =
     let timer = Stopwatch.StartNew()
     let mutable result = 0
     for i in 0..N do
-        result <- result + (sprintf (Printf.StringFormat<int -> string -> string>("foo %d %s " + i.ToString())) i "hey").Length
+        result <- result + (CorePrintf.sprintf (Printf.StringFormat<int -> string -> string>("foo %d %s " + i.ToString())) i "hey").Length
     result, timer.ElapsedMilliseconds
 
 let time2 N =

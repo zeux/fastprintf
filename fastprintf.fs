@@ -1,3 +1,4 @@
+[<AutoOpen>]
 module FastPrintf
 
 // Configuration defines:
