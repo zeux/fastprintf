@@ -441,7 +441,7 @@ module private PrintfImpl =
             member this.Finish() = finish state
 
 #if FASTPRINTF_COMPAT_FX3
-    let inline stringConcatArray data length = String.Concat(data)
+    let inline stringConcatArray data length = String.Concat(data: string array)
 #else
     let stringConcatArrayDelegate =
         let data = Expression.Parameter(typeof<string array>)
