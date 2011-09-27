@@ -2,8 +2,19 @@ module UnitTests
 
 open System
 open System.Globalization
+open System.Threading
+open System.Diagnostics
 
+#if UNITTESTS_CORE
+module FastPrintf = Microsoft.FSharp.Core.Printf
 module CorePrintf = Microsoft.FSharp.Core.Printf
+#else
+#if UNITTESTS_FAST
+module CorePrintf = FastPrintf
+#else
+module CorePrintf = Microsoft.FSharp.Core.Printf
+#endif
+#endif
 
 let testCounter = ref 0
 
@@ -472,8 +483,13 @@ numberFormat.NumberNegativePattern <- 3
 numberFormat.PositiveInfinitySymbol <- "very large"
 numberFormat.PositiveSign <- "plus"
 
-System.Threading.Thread.CurrentThread.CurrentCulture <- CultureInfo("", NumberFormat = numberFormat)
+Thread.CurrentThread.CurrentCulture <- CultureInfo("", NumberFormat = numberFormat)
 
-testAll ()
+for iter in 0..1 do
+    testCounter := 0
 
-printfn "%d tests passed" !testCounter
+    let sw = Stopwatch.StartNew()
+    testAll ()
+    let time = sw.Elapsed.TotalMilliseconds
+
+    printfn "pass %d: %d tests passed in %g ms" iter !testCounter time
