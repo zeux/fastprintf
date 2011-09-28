@@ -4,15 +4,19 @@ open System
 open System.Globalization
 open System.Threading
 open System.Diagnostics
+open System.Text
+open System.IO
 
 #if UNITTESTS_CORE
-module FastPrintf = Microsoft.FSharp.Core.Printf
-module CorePrintf = Microsoft.FSharp.Core.Printf
+module FastP = Microsoft.FSharp.Core.Printf
+module CoreP = Microsoft.FSharp.Core.Printf
 #else
 #if UNITTESTS_FAST
-module CorePrintf = FastPrintf
+module CoreP = FastPrintf.Printf
+module FastP = FastPrintf.Printf
 #else
-module CorePrintf = Microsoft.FSharp.Core.Printf
+module CoreP = Microsoft.FSharp.Core.Printf
+module FastP = FastPrintf.Printf
 #endif
 #endif
 
@@ -33,18 +37,18 @@ let t7 l r a0 a1 a2 a3 a4 a5 a6 = l a0 a1 a2 a3 a4 a5 a6 =! r a0 a1 a2 a3 a4 a5 
 let t8 l r a0 a1 a2 a3 a4 a5 a6 a7 = l a0 a1 a2 a3 a4 a5 a6 a7 =! r a0 a1 a2 a3 a4 a5 a6 a7
 let t9 l r a0 a1 a2 a3 a4 a5 a6 a7 a8 = l a0 a1 a2 a3 a4 a5 a6 a7 a8 =! r a0 a1 a2 a3 a4 a5 a6 a7 a8
 
-let tf0 (fmt: PrintfFormat<_, _, _, _>) = t0 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
-let tf1 (fmt: PrintfFormat<_, _, _, _>) = t1 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
-let tf2 (fmt: PrintfFormat<_, _, _, _>) = t2 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
-let tf3 (fmt: PrintfFormat<_, _, _, _>) = t3 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
-let tf4 (fmt: PrintfFormat<_, _, _, _>) = t4 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
-let tf5 (fmt: PrintfFormat<_, _, _, _>) = t5 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
-let tf6 (fmt: PrintfFormat<_, _, _, _>) = t6 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
-let tf7 (fmt: PrintfFormat<_, _, _, _>) = t7 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
-let tf8 (fmt: PrintfFormat<_, _, _, _>) = t8 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
-let tf9 (fmt: PrintfFormat<_, _, _, _>) = t9 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt)
+let tf0 (fmt: PrintfFormat<_, _, _, _>) = t0 (CoreP.sprintf fmt) (FastP.sprintf fmt)
+let tf1 (fmt: PrintfFormat<_, _, _, _>) = t1 (CoreP.sprintf fmt) (FastP.sprintf fmt)
+let tf2 (fmt: PrintfFormat<_, _, _, _>) = t2 (CoreP.sprintf fmt) (FastP.sprintf fmt)
+let tf3 (fmt: PrintfFormat<_, _, _, _>) = t3 (CoreP.sprintf fmt) (FastP.sprintf fmt)
+let tf4 (fmt: PrintfFormat<_, _, _, _>) = t4 (CoreP.sprintf fmt) (FastP.sprintf fmt)
+let tf5 (fmt: PrintfFormat<_, _, _, _>) = t5 (CoreP.sprintf fmt) (FastP.sprintf fmt)
+let tf6 (fmt: PrintfFormat<_, _, _, _>) = t6 (CoreP.sprintf fmt) (FastP.sprintf fmt)
+let tf7 (fmt: PrintfFormat<_, _, _, _>) = t7 (CoreP.sprintf fmt) (FastP.sprintf fmt)
+let tf8 (fmt: PrintfFormat<_, _, _, _>) = t8 (CoreP.sprintf fmt) (FastP.sprintf fmt)
+let tf9 (fmt: PrintfFormat<_, _, _, _>) = t9 (CoreP.sprintf fmt) (FastP.sprintf fmt)
 
-let tf6l (fmt: PrintfFormat<_, _, _, _>) l = for a in l do t6 (CorePrintf.sprintf fmt) (FastPrintf.sprintf fmt) a a a a a a
+let tf6l (fmt: PrintfFormat<_, _, _, _>) l = for a in l do t6 (CoreP.sprintf fmt) (FastP.sprintf fmt) a a a a a a
 
 // literal strings
 let testLiteral () =
@@ -340,7 +344,7 @@ let testGenericAToStringExn () =
 
 // currying (test for lack of visible internal state)
 let testCurry () =
-    let f = FastPrintf.sprintf "[%d %f %s %A]"
+    let f = FastP.sprintf "[%d %f %s %A]"
     let v1 = f 1
     let v2 = f 2
     let v11 = v1 1.0
@@ -399,7 +403,7 @@ let testGenericTStringNull () =
 // generic formatting currying test: the functions should only be called once the final argument is passed, the calls should be in order
 let testGenericTCurry () =
     let count = ref 0
-    let f = FastPrintf.sprintf "[%a %t]"
+    let f = FastP.sprintf "[%a %t]"
     let ff = f (fun _ a ->
         !count =! 0
         count := 1
@@ -438,6 +442,107 @@ let testArgumentCountGenericT () =
     tf5 "a%ab%tx%ac" (fun _ x -> x) "y" (fun _ -> "!") (fun _ x -> x + "z") "v"
     tf5 "%t %t %t %t %t" (fun _ -> "a") (fun _ -> "b") (fun _ -> "c") (fun _ -> "d") (fun _ -> "e")
 
+// test stringbuilder printf
+let testStringBuilder () =
+    let buf1 = new StringBuilder()
+    let buf2 = new StringBuilder()
+
+    let f1 = FastP.bprintf buf1 "[%d] = %s;"
+    let f2 = FastP.bprintf buf2 "[%d] = %s;"
+
+    string buf1 =! ""
+    string buf2 =! ""
+
+    let f11 = f1 1
+    let f12 = f1 2
+    let f21 = f2 1
+    let f22 = f2 2
+
+    string buf1 =! ""
+    string buf2 =! ""
+
+    f22 "a"
+
+    string buf1 =! ""
+    string buf2 =! "[2] = a;"
+
+    f11 "b"
+
+    string buf1 =! "[1] = b;"
+    string buf2 =! "[2] = a;"
+
+    f21 "c"
+
+    string buf1 =! "[1] = b;"
+    string buf2 =! "[2] = a;[1] = c;"
+
+    f12 "d"
+
+    string buf1 =! "[1] = b;[2] = d;"
+    string buf2 =! "[2] = a;[1] = c;"
+
+// test textwriter printf
+let testTextWriter () =
+    let buf1 = new StringWriter()
+    let buf2 = new StringWriter()
+
+    let f1 = FastP.fprintf buf1 "[%d] = %s;"
+    let f2 = FastP.fprintf buf2 "[%d] = %s;"
+
+    string buf1 =! ""
+    string buf2 =! ""
+
+    let f11 = f1 1
+    let f12 = f1 2
+    let f21 = f2 1
+    let f22 = f2 2
+
+    string buf1 =! ""
+    string buf2 =! ""
+
+    f22 "a"
+
+    string buf1 =! ""
+    string buf2 =! "[2] = a;"
+
+    f11 "b"
+
+    string buf1 =! "[1] = b;"
+    string buf2 =! "[2] = a;"
+
+    f21 "c"
+
+    string buf1 =! "[1] = b;"
+    string buf2 =! "[2] = a;[1] = c;"
+
+    f12 "d"
+
+    string buf1 =! "[1] = b;[2] = d;"
+    string buf2 =! "[2] = a;[1] = c;"
+
+// test textwriter printfn
+let testTextWriterNL () =
+    let buf = new StringWriter()
+
+    FastP.fprintfn buf "(%c)" 'x'
+    string buf =! "(x)\r\n"
+
+    FastP.fprintfn buf "(%b)" true
+    string buf =! "(x)\r\n(true)\r\n"
+
+// test continuations for printf
+let testContinuations () =
+    FastP.ksprintf (fun s -> Some s) "-%d, %g-" 1 2.0 =! Some "-1, 2-"
+    FastP.kprintf (fun s -> Some s) "-%d, %g-" 1 2.0 =! Some "-1, 2-"
+
+    let buf = new StringBuilder()
+    FastP.kbprintf (fun () -> buf.ToString()) buf "!%b?" true =! "!true?"
+    string buf =! "!true?"
+
+    let buf = new StringWriter()
+    FastP.kfprintf (fun () -> buf.ToString()) buf "!%b?" true =! "!true?"
+    string buf =! "!true?"
+
 // all tests
 let testAll () =
     testLiteral ()
@@ -469,6 +574,10 @@ let testAll () =
     testGenericTCurry ()
     testArgumentCountBasic ()
     testArgumentCountGenericT ()
+    testStringBuilder ()
+    testTextWriter ()
+    testTextWriterNL ()
+    testContinuations ()
 
 // make a mess out of the current culture to make sure the culture-related behavior is the same as that of core printf
 let numberFormat = NumberFormatInfo()
