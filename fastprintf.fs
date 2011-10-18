@@ -441,37 +441,21 @@ module private PrintfImpl =
             member this.Append(s, e) = state <- String.Concat(state, s, e.postfix)
             member this.Finish() = finish state
 
-#if FASTPRINTF_COMPAT_FX3
-    let inline stringConcatArray data length = String.Concat(data: string array)
-#else
-    let stringConcatArrayDelegate =
-        let data = Expression.Parameter(typeof<string array>)
-        let length = Expression.Parameter(typeof<int>)
-        Expression.Lambda<Func<string array, int, string>>(
-            Expression.Call(typeof<string>.GetMethod("ConcatArray", bindingFlags), data, length), [| data; length |]
-            ).Compile()
-
-    let inline stringConcatArray data length = stringConcatArrayDelegate.Invoke(data, length)
-#endif
-
     type StringJoinFormatContext<'Result>(prefix: string, count, finish) =
         let state = Array.zeroCreate (count * 2 + 1)
         do state.[0] <- prefix
 
         let mutable index = 1
-        let mutable length = prefix.Length
 
         interface FormatContext<'Result> with
             member this.Apply(f, e) = (this :> FormatContext<'Result>).Append(f null :?> string, e)
             member this.Append(s, e) =
-                let ss = if s = null then "" else s
-                state.[index] <- ss
+                state.[index] <- s
                 state.[index + 1] <- e.postfix
                 index <- index + 2
-                length <- length + ss.Length + e.postfix.Length
             member this.Finish() =
                 assert (index = state.Length)
-                finish (stringConcatArray state length)
+                finish (String.Join("", state))
 
     type TextWriterFormatContext<'Result>(writer: TextWriter, prefix: string, finish) =
         do writer.Write(prefix)
