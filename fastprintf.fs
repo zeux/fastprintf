@@ -16,7 +16,6 @@ open Microsoft.FSharp.Core.Printf
 open System.Collections.Generic
 #else
 open System.Collections.Concurrent
-open System.Linq.Expressions
 #endif
 
 module private PrintfImpl =
