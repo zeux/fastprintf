@@ -36,6 +36,8 @@ module private PrintfImpl =
 
     let inline hasFlag e f = (e &&& f) = f
 
+    let inline (===) l r = Object.ReferenceEquals(l, r)
+
     let parseFormatFlag ch =
         match ch with
         | '0' -> FormatFlags.ZeroFill
@@ -233,7 +235,7 @@ module private PrintfImpl =
 
     type Factory =
         static member CreateBoxString<'T> (e: FormatElement) =
-            let basic = fun (o: 'T) -> if Object.ReferenceEquals(o, null) then "<null>" else o.ToString()
+            let basic = fun (o: 'T) -> if o === null then "<null>" else o.ToString()
             basic |> addPadding e
 
         static member CreateGenericString<'T> (e: FormatElement) =
@@ -360,35 +362,35 @@ module private PrintfImpl =
         #endif
             |> box
         | 'd' | 'i' | 'u' | 'x' | 'X' | 'o' ->
-            if typ = typeof<int8> then toStringInteger e uint8 |> box<int8 -> string>
-            else if typ = typeof<uint8> then toStringInteger e uint8 |> box<uint8 -> string>
-            else if typ = typeof<int16> then toStringInteger e uint16 |> box<int16 -> string>
-            else if typ = typeof<uint16> then toStringInteger e uint16 |> box<uint16 -> string>
-            else if typ = typeof<int32> then toStringInteger e uint32 |> box<int32 -> string>
-            else if typ = typeof<uint32> then toStringInteger e uint32 |> box<uint32 -> string>
-            else if typ = typeof<int64> then toStringInteger e uint64 |> box<int64 -> string>
-            else if typ = typeof<uint64> then toStringInteger e uint64 |> box<uint64 -> string>
-            else if typ = typeof<nativeint> then
+            if typ === typeof<int8> then toStringInteger e uint8 |> box<int8 -> string>
+            else if typ === typeof<uint8> then toStringInteger e uint8 |> box<uint8 -> string>
+            else if typ === typeof<int16> then toStringInteger e uint16 |> box<int16 -> string>
+            else if typ === typeof<uint16> then toStringInteger e uint16 |> box<uint16 -> string>
+            else if typ === typeof<int32> then toStringInteger e uint32 |> box<int32 -> string>
+            else if typ === typeof<uint32> then toStringInteger e uint32 |> box<uint32 -> string>
+            else if typ === typeof<int64> then toStringInteger e uint64 |> box<int64 -> string>
+            else if typ === typeof<uint64> then toStringInteger e uint64 |> box<uint64 -> string>
+            else if typ === typeof<nativeint> then
                 match sizeof<nativeint> with
                 | 4 -> (fun x -> int32 x |> toStringInteger e uint32) |> box<nativeint -> string>
                 | 8 -> (fun x -> int64 x |> toStringInteger e uint64) |> box<nativeint -> string>
                 | x -> failwith "Unexpected size for nativeint: %d" x
-            else if typ = typeof<unativeint> then
+            else if typ === typeof<unativeint> then
                 match sizeof<unativeint> with
                 | 4 -> (fun x -> uint32 x |> toStringInteger e uint32) |> box<unativeint -> string>
                 | 8 -> (fun x -> uint64 x |> toStringInteger e uint64) |> box<unativeint -> string>
                 | x -> failwith "Unexpected size for unativeint: %d" x
             else failwithf "Unrecognized type %A" typ
         | 'e' | 'E' | 'f' | 'F' | 'g' | 'G' ->
-            if typ = typeof<float32> then toStringFloat e |> box<float32 -> string>
-            else if typ = typeof<float> then toStringFloat e |> box<float -> string>
-            else if typ = typeof<decimal> then toStringFloatBasic (getFloatFormat e) e |> addPadding e |> box<decimal -> string>
+            if typ === typeof<float32> then toStringFloat e |> box<float32 -> string>
+            else if typ === typeof<float> then toStringFloat e |> box<float -> string>
+            else if typ === typeof<decimal> then toStringFloatBasic (getFloatFormat e) e |> addPadding e |> box<decimal -> string>
             else failwithf "Unrecognized type %A" typ
         | 'M' ->
-            if typ = typeof<decimal> then toStringFloatBasic "G" e |> addPadding e |> box<decimal -> string>
+            if typ === typeof<decimal> then toStringFloatBasic "G" e |> addPadding e |> box<decimal -> string>
             else failwithf "Unrecognized type %A" typ
         | 's' ->
-            if typ = typeof<string> then (fun (x: string) -> if x = null then "" else x) |> addPadding e |> box
+            if typ === typeof<string> then (fun (x: string) -> if x = null then "" else x) |> addPadding e |> box
             else failwithf "Unrecognized type %A" typ
         | 'O' -> getBoxStringFunction e typ
         | 'A' -> getGenericStringFunction e typ
@@ -504,7 +506,7 @@ module private PrintfImpl =
         let mutable value = Unchecked.defaultof<'V>
 
         member this.Item k (cache: Cache<'K, 'V>) =
-            if Object.ReferenceEquals(key, k) then
+            if key === k then
                 value
             else
                 let v = cache.Item k
@@ -524,7 +526,7 @@ module private PrintfImpl =
 
         static member Item fmt =
             let lc = PrintfCache<'Printer, 'State, 'Residue, 'Result>.local
-            if Object.ReferenceEquals(lc, null) then
+            if lc === null then
                 let lc = LocalCache<_, _>()
                 PrintfCache<'Printer, 'State, 'Residue, 'Result>.local <- lc
                 lc.Item fmt cache
@@ -547,7 +549,7 @@ module private PrintfImpl =
 
         static member Item fmt =
             let lc = PrintfCacheString<'Printer>.local
-            if Object.ReferenceEquals(lc, null) then
+            if lc === null then
                 let lc = LocalCache<_, _>()
                 PrintfCacheString<'Printer>.local <- lc
                 lc.Item fmt cache
