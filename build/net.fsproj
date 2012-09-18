@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Framework Condition="'$(Framework)' == ''">4.0</Framework>
+    <Profile Condition="'$(Profile)' == ''">full</Profile>
+    <FSV Condition="'$(FSV)' == ''">4.3.0.0</FSV>
+  </PropertyGroup>
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>c0f3fcad-dfb8-4e6d-bb26-69fb40cc616f</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>fastprintf</RootNamespace>
+    <AssemblyName>fastprintf</AssemblyName>
+    <TargetFrameworkVersion>v$(Framework)</TargetFrameworkVersion>
+    <TargetFrameworkProfile Condition="'$(Profile)' != 'full'">Client</TargetFrameworkProfile>
+    <Name>fastprintf</Name>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OutputPath>bin\net$(Framework)-$(Profile)-$(Configuration)</OutputPath>
+    <IntermediateOutputPath>obj\net$(Framework)-$(Profile)-$(Configuration)</IntermediateOutputPath>
+    <WarningLevel>3</WarningLevel>
+    <DefineConstants Condition="'$(Framework)' == '2.0' or '$(Framework)' == '3.0' or '$(Framework)' == '3.5'">FASTPRINTF_COMPAT_FX3</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <Tailcalls>false</Tailcalls>
+    <DefineConstants>DEBUG;$(DefineConstants)</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <Tailcalls>true</Tailcalls>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../assemblyinfo.fs" />
+    <Compile Include="../fastprintf.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="mscorlib" />
+    <Reference Include="FSharp.Core, Version=$(FSV)" />
+    <Reference Include="System" />
+  </ItemGroup>
+  <PropertyGroup>
+    <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
+  </PropertyGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets')" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
