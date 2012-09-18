@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>FastPrintf</id>
+    <version>1.0.0</version>
+    <authors>Arseny Kapoulkine</authors>
+    <owners>Arseny Kapoulkine</owners>
+    <licenseUrl>http://opensource.org/licenses/mit-license.php</licenseUrl>
+    <projectUrl>http://hg.zeuxcg.org/fastprintf</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>A 100x faster drop-in replacement for the built-in F# Printf module.</description>
+    <copyright>Copyright (c) 2011-2012 Arseny Kapoulkine</copyright>
+    <tags>f# printf</tags>
+  </metadata>
+  <files>
+    <file src="*\bin\net2.0-full-release\*.dll" target="lib\net20" />
+    <file src="*\bin\net3.0-full-release\*.dll" target="lib\net30" />
+    <file src="*\bin\net3.5-client-release\*.dll" target="lib\net35-client" />
+    <file src="*\bin\net3.5-full-release\*.dll" target="lib\net35-full" />
+    <file src="*\bin\net4.0-full-release\*.dll" target="lib\net40-full" />
+    <file src="*\bin\net4.0-client-release\*.dll" target="lib\net40-client" />
+    <file src="*\bin\net4.5-full-release\*.dll" target="lib\net45" />
+  </files>
+</package>
