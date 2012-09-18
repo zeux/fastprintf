@@ -4,6 +4,10 @@ This is the distribution of fastprintf package. It is a replacement for
 printf function family, that is intended to maximize the performance,
 while preserving the behavior of the original functions.
 
+Installation process (using NuGet):
+
+PM> Install-Package FastPrintf
+
 Installation process (using source):
 
 - Include fastprintf.fs in all your assemblies (as the first file in the list);
@@ -14,7 +18,8 @@ Installation process (using prebuilt assembly):
 
 - Include fastprintf.dll as a dependency for all assemblies in your project.
 The distributed assembly is compiled using F# 3.0; you can compile it yourself:
-fsc fastprintf.fs /optimize /tailcalls /target:library
+
+> fsc fastprintf.fs /optimize /tailcalls /target:library
 
 Configuration:
 
@@ -48,3 +53,30 @@ thread-local cache to reduce cache hit time).
 for several known types (primitive types, strings, etc.), but falls back to F# core
 implementation, which is slow. It is possible to improve the performance of %A in more
 cases, but this has not been done yet.
+
+License:
+
+This library is distributed under the MIT License:
+
+Copyright (c) 2011-2012 Arseny Kapoulkine
+
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated documentation
+files (the "Software"), to deal in the Software without
+restriction, including without limitation the rights to use,
+copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
